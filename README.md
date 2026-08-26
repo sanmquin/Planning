@@ -103,6 +103,7 @@ config = {
 - `0.dense_random_walk_graph_dataset_tutorial.ipynb`: Dense Random Walk dataset generation notebook ($d_{\text{min}} \ge 4$, Best-of-N Quality Scoring).
 - `0.one_shot_graph_shortest_path_tutorial.ipynb`: One-Shot Non-Autoregressive Transformer tutorial.
 - `1.step_by_step_graph_shortest_path_tutorial.ipynb`: Step-by-Step Autoregressive Graph Shortest Path Transformer tutorial.
+- `src/1.Inference/3.Large_scale_SGD_dense_autoregressive_GSP.ipynb`: Large-scale Autoregressive Graph Transformer trained with SGD momentum and stochastic 1,000 / 30,000 epoch sub-sampling on 10x dense execution traces.
 - `2.mechanistic_interpretability_and_causal_analysis_tutorial.ipynb`: Mechanistic interpretability and causal activation patching tutorial dissecting the phase transition from Epoch 300 to Epoch 400.
 - `3.topological_difficulty_and_step_error_prediction_tutorial.ipynb`: Topological difficulty modeling and step-by-step error prediction notebook decoupling task difficulty from attention misrouting.
 - `generate_data_notebook.py`: Programmatic generator for DFS dataset notebook.
@@ -177,3 +178,14 @@ Notebook `src/2.Interpretation/4.Duplicated_token_attention_and_backtrace_mechan
 #### 3. Causal Stage: Causal Attention Masking Interventions
 - **Masking $V_{\text{later}}$ Exit Anchor Region**: Suppressing pre-softmax attention logits at the $V_{\text{later}}$ exit region ($i_{\text{later}}$ and $i_{\text{later}}+1$) in Layer 1 cross-attention causes an absolute collapse in target token probability $P(V_{\text{next}})$ from $0.4329$ down to $0.0002$ and a massive target logit margin drop ($\Delta z$ loss of $18.2610$ logit points).
 - **Masking $V_{\text{first}}$ Keys**: Suppressing $V_{\text{first}}$ key vectors ($i_{\text{first}}$) results in negligible change ($P(V_{\text{next}}) = 0.4330$), confirming that $V_{\text{later}}$ is the causally dominant position for autoregressive rollout continuation.
+
+---
+
+## 8. Large-Scale Stochastic Gradient Descent (SGD) Autoregressive Solver (Notebook 3)
+
+Notebook `src/1.Inference/3.Large_scale_SGD_dense_autoregressive_GSP.ipynb` implements an Autoregressive Graph Shortest Path Transformer trained on the 10x Scale Dense Dataset (`graph_rw_dense_10x_dataset.pt`, $N_{\text{train}} = 30,000$) using Stochastic Gradient Descent (SGD) with momentum ($\mu = 0.9$).
+
+### Key Features & Sub-Sampling Strategy
+- **Stochastic Sub-Sampling (1,000 / 30,000)**: In each epoch, a random subset of 1,000 training instances is sampled without replacement using `torch.utils.data.RandomSampler`. This exposes the model to the full 30,000-sample dataset across training while maintaining constant per-epoch compute requirements.
+- **First-Order SGD Dynamics**: Investigates SGD optimization behavior ($\eta = 0.01$, $\mu = 0.9$) on sequence-to-sequence causal graph transformers, evaluating gradient noise tolerance and rollout generalization over dense graphs ($k \ge 4$, decoy ratio $> 60\%$).
+- **Multi-Metric Evaluation**: Tracks Cross-Entropy Loss, Teacher-Forcing Token Accuracy, Autoregressive Rollout Exact Match %, and Path Connectivity Validity % across training epochs and held-out test evaluations.
