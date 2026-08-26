@@ -11,6 +11,7 @@ import GraphVisualizer from './components/GraphVisualizer';
 import AttentionHeatmap from './components/AttentionHeatmap';
 import ModelComparer from './components/ModelComparer';
 import LogitInspector from './components/LogitInspector';
+import InferencePipelineInspector from './components/InferencePipelineInspector';
 import ParameterInspector from './components/ParameterInspector';
 import ResearchPanel from './components/ResearchPanel';
 
@@ -65,7 +66,7 @@ export default function App() {
               Graph Shortest Path Transformer Visualizer
             </h1>
             <p className="text-[10px] text-zinc-500 font-medium">
-              Sequential Autoregressive Rollout &amp; Cross-Attention Routing Engine
+              Autoregressive Graph Transformer (vocab=42, embed_dim=16, num_heads=2, hidden_dim=32, num_layers=2)
             </p>
           </div>
         </div>
@@ -236,6 +237,12 @@ export default function App() {
               predictedSP={activeTrace.predictedSP}
               groundTruthSP={activeTrace.groundTruthSP}
               modelEpoch={modelEpoch}
+            />
+
+            <InferencePipelineInspector
+              stepTrace={activeStepTrace}
+              groundTruthSP={activeTrace.groundTruthSP}
+              currentStep={safeStepIdx}
             />
 
             <LogitInspector

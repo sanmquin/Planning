@@ -28,8 +28,40 @@ export interface AttentionHeadWeights {
 }
 
 export interface LayerAttentionTrace {
-  selfAttnHeads: AttentionHeadWeights[]; // 4 heads
-  crossAttnHeads?: AttentionHeadWeights[]; // 4 heads (for decoder layers)
+  selfAttnHeads: AttentionHeadWeights[]; // 2 heads
+  crossAttnHeads?: AttentionHeadWeights[]; // 2 heads (for decoder layers)
+}
+
+export interface DecoderLayerStepComputation {
+  layerIndex: number;
+  inputState: number[];          // [16] input vector to decoder layer for current active token position
+  selfAttnOut: number[];         // [16] output of self-attention
+  postSelfNorm: number[];        // [16] after self-attention residual + norm1
+  crossAttnOut: number[];        // [16] output of cross-attention
+  postCrossNorm: number[];       // [16] after cross-attention residual + norm2
+  ffnHiddenGelu: number[];       // [32] intermediate hidden vector after GELU
+  ffnOut: number[];              // [16] output of linear2
+  outputState: number[];         // [16] after FFN residual + norm3
+}
+
+export interface StepComputationTrace {
+  inputToken: number;
+  inputTokenEmbedding: number[];  // [16] token embedding vector
+  positionalEncoding: number[];  // [16] PE vector at current position
+  combinedEmbedding: number[];   // [16] token_emb + PE
+  decoderLayers: DecoderLayerStepComputation[]; // 2 decoder layers
+  finalDecoderState: number[];   // [16] vector fed into fc_out
+  fcWeightsSnippet: {
+    token: number;
+    weightVec: number[];
+    bias: number;
+    dotProduct: number;
+    logit: number;
+    prob: number;
+  }[];
+  logitMargin: number;           // z_top1 - z_top2
+  top1Token: number;
+  top2Token: number;
 }
 
 export interface AutoregressiveStepTrace {
@@ -42,6 +74,7 @@ export interface AutoregressiveStepTrace {
   probabilities: number[]; // [42]
   topK: { token: number; prob: number; logit: number }[];
   predictedToken: number;
+  computationTrace: StepComputationTrace;
 }
 
 export interface FullInferenceTrace {
@@ -155,7 +188,7 @@ function computeMultiHeadAttention(
   inProjBias: number[],     // [48]
   outProjWeight: number[][], // [16 x 16]
   outProjBias: number[],     // [16]
-  numHeads = 4,
+  numHeads = 2,
   dModel = 16,
   keyPaddingMask?: boolean[], // length K_len
   causalMask?: boolean[][]   // [Q_len x K_len]
@@ -339,7 +372,7 @@ export function runSingleStepInference(
       inProjB,
       outProjW,
       outProjB,
-      4,
+      2,
       16,
       srcMask
     );
@@ -416,10 +449,19 @@ export function runSingleStepInference(
 
   const decoderSelfAttnTraces: LayerAttentionTrace[] = [];
   const decoderCrossAttnTraces: LayerAttentionTrace[] = [];
+  const decoderLayerComputations: DecoderLayerStepComputation[] = [];
+
+  const activePos = tgtLen - 1;
+  const activeInputToken = currTgtSeq[activePos];
+  const inputTokenEmbedding = [...tokenEmbed[activeInputToken]];
+  const positionalEncoding = [...tgtPE[activePos]];
+  const combinedEmbedding = [...decState[activePos]];
 
   // 5. Decoder Layers (2 Layers)
   for (let l = 0; l < 2; l++) {
     const prefix = `decoder.layers.${l}.`;
+
+    const layerInputState = [...decState[activePos]];
 
     // Causal Self-Attention
     const selfInProjW = rawWeights[prefix + "self_attn.in_proj_weight"];
@@ -435,7 +477,7 @@ export function runSingleStepInference(
       selfInProjB,
       selfOutProjW,
       selfOutProjB,
-      4,
+      2,
       16,
       undefined,
       causalMask
@@ -464,7 +506,7 @@ export function runSingleStepInference(
       crossInProjB,
       crossOutProjW,
       crossOutProjB,
-      4,
+      2,
       16,
       srcMask
     );
@@ -496,6 +538,9 @@ export function runSingleStepInference(
     const norm3W = rawWeights[prefix + "norm3.weight"];
     const norm3B = rawWeights[prefix + "norm3.bias"];
 
+    let activeFFnHidden: number[] = [];
+    let activeFFnOut: number[] = [];
+
     let y3: number[][] = [];
     for (let i = 0; i < tgtLen; i++) {
       const ffnHidden = new Array(32).fill(0);
@@ -512,9 +557,26 @@ export function runSingleStepInference(
         ffnOut[d] = sum;
       }
 
+      if (i === activePos) {
+        activeFFnHidden = [...ffnHidden];
+        activeFFnOut = [...ffnOut];
+      }
+
       const res = y2[i].map((v, d) => v + ffnOut[d]);
       y3.push(layerNorm(res, norm3W, norm3B));
     }
+
+    decoderLayerComputations.push({
+      layerIndex: l,
+      inputState: layerInputState,
+      selfAttnOut: [...selfMHA.output[activePos]],
+      postSelfNorm: [...y1[activePos]],
+      crossAttnOut: [...crossMHA.output[activePos]],
+      postCrossNorm: [...y2[activePos]],
+      ffnHiddenGelu: activeFFnHidden,
+      ffnOut: activeFFnOut,
+      outputState: [...y3[activePos]]
+    });
 
     decState = y3;
   }
@@ -523,35 +585,71 @@ export function runSingleStepInference(
   const fcW = rawWeights["fc_out.weight"] as number[][]; // [42 x 16]
   const fcB = rawWeights["fc_out.bias"] as number[];    // [42]
 
-  const lastVec = decState[tgtLen - 1];
+  const lastVec = [...decState[activePos]];
   const logits = new Array(VOCAB_SIZE).fill(0);
+  const dotProducts = new Array(VOCAB_SIZE).fill(0);
+
   for (let v = 0; v < VOCAB_SIZE; v++) {
-    let sum = fcB[v];
+    let dot = 0;
     for (let d = 0; d < 16; d++) {
-      sum += lastVec[d] * fcW[v][d];
+      dot += lastVec[d] * fcW[v][d];
     }
-    logits[v] = sum;
+    dotProducts[v] = dot;
+    logits[v] = dot + fcB[v];
   }
 
   const probs = softmax(logits);
 
   // Top-5 Token Probabilities
-  const tokenPairs = probs.map((prob, tok) => ({ token: tok, prob, logit: logits[tok] }));
+  const tokenPairs = probs.map((prob, tok) => ({
+    token: tok,
+    prob,
+    logit: logits[tok],
+    dotProduct: dotProducts[tok],
+    bias: fcB[tok],
+    weightVec: [...fcW[tok]]
+  }));
   tokenPairs.sort((a, b) => b.prob - a.prob);
   const topK = tokenPairs.slice(0, 5);
 
   const predictedToken = topK[0].token;
+  const top1Logit = topK[0].logit;
+  const top2Logit = topK[1]?.logit ?? top1Logit;
+  const logitMargin = top1Logit - top2Logit;
+
+  const fcWeightsSnippet = topK.map(item => ({
+    token: item.token,
+    weightVec: item.weightVec,
+    bias: item.bias,
+    dotProduct: item.dotProduct,
+    logit: item.logit,
+    prob: item.prob
+  }));
+
+  const computationTrace: StepComputationTrace = {
+    inputToken: activeInputToken,
+    inputTokenEmbedding,
+    positionalEncoding,
+    combinedEmbedding,
+    decoderLayers: decoderLayerComputations,
+    finalDecoderState: lastVec,
+    fcWeightsSnippet,
+    logitMargin,
+    top1Token: topK[0].token,
+    top2Token: topK[1]?.token ?? topK[0].token
+  };
 
   return {
-    step: tgtLen - 1,
+    step: activePos,
     currTgtSeq: [...currTgtSeq],
     encoderSelfAttn: encoderSelfAttnTraces,
     decoderSelfAttn: decoderSelfAttnTraces,
     decoderCrossAttn: decoderCrossAttnTraces,
     logits,
     probabilities: probs,
-    topK,
-    predictedToken
+    topK: topK.map(t => ({ token: t.token, prob: t.prob, logit: t.logit })),
+    predictedToken,
+    computationTrace
   };
 }
 

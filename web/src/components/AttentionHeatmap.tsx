@@ -140,7 +140,7 @@ export default function AttentionHeatmap({
           {/* Head Selector */}
           <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-800 font-mono">
             <span className="text-zinc-500 px-1 text-[11px]">Head:</span>
-            {[0, 1, 2, 3].map(h => (
+            {[0, 1].map(h => (
               <button
                 key={h}
                 onClick={() => onSelectHead(h)}
