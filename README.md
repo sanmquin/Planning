@@ -19,7 +19,9 @@ The procedural graph datasets (`graphs/data/graph_dfs_dataset.pt`, `graphs/data/
      - **Sub-Loop Revisits ($revisited\_nodes$)**: Count of unique nodes visited $> 1$ time across non-trivial sub-loops.
      - **Decoy Edge Ratio ($decoy\_ratio$)**: Ratio of observed trace edges that act as distractor edges off the target shortest path $P^*$.
 
+```
 $$Q(T) = 2.5 \cdot N_{\text{alt\_sp}} + 1.5 \cdot N_{\text{revisit}} + 12.0 \cdot \eta_{\text{decoy}} + 5.0 \cdot \text{CC}(G) + 1.0 \cdot \langle k \rangle$$
+```
 
 ### Traversal Parameters & Sequence Bounds
 - **Input Traversal Trace ($T$)**: Goal-terminated 1D execution trace containing forward exploration, loops, and return/backtracking steps.
