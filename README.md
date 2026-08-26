@@ -112,6 +112,8 @@ config = {
 - `generate_ar_notebook.py`: Programmatic generator for Autoregressive Notebook.
 - `generate_mechanistic_notebook.py`: Programmatic generator for Mechanistic Analysis Notebook 2.
 - `generate_difficulty_notebook.py`: Programmatic generator for Topological Difficulty Notebook 3.
+- `generate_dupe_attention_notebook.py`: Programmatic generator for Duplicated Token Attention Notebook 6.
+- `src/2.Interpretation/4.Duplicated_token_attention_and_backtrace_mechanics.ipynb`: Research tutorial notebook on duplicated token attention mechanics and backtrace dynamics.
 - `data/graph_dfs_dataset.pt`: Pre-generated DFS dataset payload.
 - `data/graph_rw_dataset.pt`: Pre-generated RW dataset payload.
 - `data/graph_rw_dense_dataset.pt`: Pre-generated Dense RW dataset payload ($d_{\text{min}} \ge 4$, Best-of-N $Q$).
@@ -152,3 +154,26 @@ Notebook `3.topological_difficulty_and_step_error_prediction_tutorial.ipynb` mod
 - **Mechanistic Error Decoupling**:
   - **Topologically Difficult Errors**: Errors occurring at high topological complexity decisions ($D(m) \ge 0.5$).
   - **Attention Misrouting Failures**: Errors occurring at topologically simple decisions ($D(m) < 0.5$) where prediction failed due to cross-attention misrouting / high entropy.
+
+---
+
+## 7. Attention Routing Dynamics over Duplicated Tokens and Backtrace Trajectories (Notebook 6)
+
+Notebook `src/2.Interpretation/4.Duplicated_token_attention_and_backtrace_mechanics.ipynb` investigates how Transformer attention handles duplicated tokens (nodes experienced during backtraces/dead-ends) versus unique tokens in graph shortest path extraction across inference phases and training epochs.
+
+### 3-Tier Metric Progression & Quantitative Results
+
+#### 1. Descriptive Stage: Attention Mass Allocation
+- **Duplicated Token Attention Share ($R_{\text{dupe}}$)**: In Layer 1 cross-attention, duplicated tokens account for $29.59\%$ of total attention mass in Epoch 400 versus $33.97\%$ in Epoch 300.
+- **First vs. Later Token Split Ratio ($S_{\text{later}}$)**: When attending to a duplicated node $V$ in the trace, the model allocates $86.71\%$ of its duplicated attention mass to the **later occurrence** ($V_{\text{later}}$) in Epoch 400 versus $77.66\%$ in Epoch 300.
+- **Active Frontier Anchoring**: Post-phase transition models treat $V_{\text{later}}$ (the exit node from a backtrace trajectory) as the active frontier anchor for predicting the next step $V_{\text{next}}$.
+
+#### 2. Diagnostic Stage: Anchor Selection Index ($ASI$) & Error Dissection
+- **Anchor Selection Index ($ASI$)**: Quantifies the attention preference for $V_{\text{later}}$ over $V_{\text{first}}$:
+  $$ASI(m) = \frac{A(V_{\text{later}})}{A(V_{\text{first}}) + A(V_{\text{later}})}$$
+- **Step Prediction Accuracy**: Step decision accuracy increases from $90.31\%$ (Epoch 300) to $98.75\%$ (Epoch 400), with mean cross-attention entropy dropping from $0.8349$ to $0.6423$ nats.
+- **Error Dissection**: On Error Steps in Epoch 300, $ASI$ drops sharply to $0.6469$ (and lower on critical branching points), demonstrating that attention misrouting back to stale initial occurrences ($V_{\text{first}}$) directly causes step decision failures.
+
+#### 3. Causal Stage: Causal Attention Masking Interventions
+- **Masking $V_{\text{later}}$ Exit Anchor Region**: Suppressing pre-softmax attention logits at the $V_{\text{later}}$ exit region ($i_{\text{later}}$ and $i_{\text{later}}+1$) in Layer 1 cross-attention causes an absolute collapse in target token probability $P(V_{\text{next}})$ from $0.4329$ down to $0.0002$ and a massive target logit margin drop ($\Delta z$ loss of $18.2610$ logit points).
+- **Masking $V_{\text{first}}$ Keys**: Suppressing $V_{\text{first}}$ key vectors ($i_{\text{first}}$) results in negligible change ($P(V_{\text{next}}) = 0.4330$), confirming that $V_{\text{later}}$ is the causally dominant position for autoregressive rollout continuation.
