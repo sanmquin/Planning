@@ -1,24 +1,38 @@
 import { useState } from 'react';
 import { AutoregressiveStepTrace, STOP_TOKEN, PAD_TOKEN } from '../model/graph_transformer';
-import { Cpu, ArrowRight, Layers, Zap, CheckCircle2, AlertTriangle, Calculator } from 'lucide-react';
+import { Cpu, ArrowRight, Layers, Zap, CheckCircle2, AlertTriangle, Calculator, Database } from 'lucide-react';
 import ComputationFormulaModal from './ComputationFormulaModal';
+
+export type PipelineStage = 'embeddings' | 'decoder_l1' | 'decoder_l2' | 'classifier';
 
 interface InferencePipelineInspectorProps {
   stepTrace: AutoregressiveStepTrace;
   groundTruthSP: number[];
   currentStep: number;
+  activeStage?: PipelineStage;
+  onStageChange?: (stage: PipelineStage) => void;
+  selectedEpoch?: "300" | "400" | "500";
+  onSelectEpoch?: (epoch: "300" | "400" | "500") => void;
 }
-
-type PipelineStage = 'embeddings' | 'decoder_l1' | 'decoder_l2' | 'classifier';
 
 export default function InferencePipelineInspector({
   stepTrace,
   groundTruthSP,
-  currentStep
+  currentStep,
+  activeStage: externalActiveStage,
+  onStageChange,
+  selectedEpoch = "500",
+  onSelectEpoch
 }: InferencePipelineInspectorProps) {
-  const [activeStage, setActiveStage] = useState<PipelineStage>('classifier');
+  const [internalActiveStage, setInternalActiveStage] = useState<PipelineStage>('classifier');
   const [selectedTokenIndex, setSelectedTokenIndex] = useState<number>(0); // Index in topK / snippet
   const [isFormulaModalOpen, setIsFormulaModalOpen] = useState<boolean>(false);
+
+  const activeStage = externalActiveStage !== undefined ? externalActiveStage : internalActiveStage;
+  const handleStageChange = (stage: PipelineStage) => {
+    if (onStageChange) onStageChange(stage);
+    else setInternalActiveStage(stage);
+  };
 
   const targetToken = currentStep + 1 < groundTruthSP.length
     ? groundTruthSP[currentStep + 1]
@@ -80,26 +94,54 @@ export default function InferencePipelineInspector({
           </p>
         </div>
 
-        <div className="flex items-center gap-2 text-xs font-mono">
-          <span className="text-zinc-400">Target Goal:</span>
-          <span className="px-2 py-0.5 rounded bg-zinc-800 text-sky-300 font-bold">
-            {targetToken === STOP_TOKEN ? 'STOP (41)' : targetToken === PAD_TOKEN ? 'PAD (40)' : targetToken}
-          </span>
-          <span className={`px-2 py-0.5 rounded font-bold flex items-center gap-1 ${
-            isCorrect
-              ? 'bg-emerald-950/80 border border-emerald-500/50 text-emerald-300'
-              : 'bg-rose-950/80 border border-rose-500/50 text-rose-300'
-          }`}>
-            {isCorrect ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
-            {isCorrect ? 'Correct ✓' : 'Error ⚠'}
-          </span>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Checkpoint Switcher for Step Solver */}
+          {onSelectEpoch && (
+            <div className="flex items-center gap-1.5 bg-zinc-950 px-2 py-1 rounded-lg border border-zinc-800 text-xs font-mono">
+              <span className="text-zinc-500 text-[10px] flex items-center gap-1">
+                <Database className="w-3 h-3 text-cyan-400" /> Checkpoint:
+              </span>
+              {(["300", "400", "500"] as const).map(ep => (
+                <button
+                  key={ep}
+                  onClick={() => onSelectEpoch(ep)}
+                  className={`px-2 py-0.5 rounded text-[11px] transition-all font-bold ${
+                    selectedEpoch === ep
+                      ? ep === "300"
+                        ? 'bg-amber-500 text-zinc-950 shadow-sm'
+                        : ep === "400"
+                        ? 'bg-emerald-500 text-zinc-950 shadow-sm'
+                        : 'bg-indigo-500 text-white shadow-sm'
+                      : 'text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  Epoch {ep}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 text-xs font-mono">
+            <span className="text-zinc-400">Target Goal:</span>
+            <span className="px-2 py-0.5 rounded bg-zinc-800 text-sky-300 font-bold">
+              {targetToken === STOP_TOKEN ? 'STOP (41)' : targetToken === PAD_TOKEN ? 'PAD (40)' : targetToken}
+            </span>
+            <span className={`px-2 py-0.5 rounded font-bold flex items-center gap-1 ${
+              isCorrect
+                ? 'bg-emerald-950/80 border border-emerald-500/50 text-emerald-300'
+                : 'bg-rose-950/80 border border-rose-500/50 text-rose-300'
+            }`}>
+              {isCorrect ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
+              {isCorrect ? 'Correct ✓' : 'Error ⚠'}
+            </span>
+          </div>
         </div>
       </div>
 
       {/* Interactive Pipeline Stage Navigation Ribbon */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs font-mono">
         <button
-          onClick={() => setActiveStage('embeddings')}
+          onClick={() => handleStageChange('embeddings')}
           className={`p-3 rounded-lg border text-left transition-all ${
             activeStage === 'embeddings'
               ? 'bg-indigo-950/80 border-indigo-500 text-indigo-200 shadow-[0_0_12px_rgba(99,102,241,0.25)] font-bold'
@@ -115,7 +157,7 @@ export default function InferencePipelineInspector({
         </button>
 
         <button
-          onClick={() => setActiveStage('decoder_l1')}
+          onClick={() => handleStageChange('decoder_l1')}
           className={`p-3 rounded-lg border text-left transition-all ${
             activeStage === 'decoder_l1'
               ? 'bg-violet-950/80 border-violet-500 text-violet-200 shadow-[0_0_12px_rgba(139,92,246,0.25)] font-bold'
@@ -131,7 +173,7 @@ export default function InferencePipelineInspector({
         </button>
 
         <button
-          onClick={() => setActiveStage('decoder_l2')}
+          onClick={() => handleStageChange('decoder_l2')}
           className={`p-3 rounded-lg border text-left transition-all ${
             activeStage === 'decoder_l2'
               ? 'bg-cyan-950/80 border-cyan-500 text-cyan-200 shadow-[0_0_12px_rgba(6,182,212,0.25)] font-bold'
@@ -147,7 +189,7 @@ export default function InferencePipelineInspector({
         </button>
 
         <button
-          onClick={() => setActiveStage('classifier')}
+          onClick={() => handleStageChange('classifier')}
           className={`p-3 rounded-lg border text-left transition-all ${
             activeStage === 'classifier'
               ? 'bg-emerald-950/80 border-emerald-500 text-emerald-200 shadow-[0_0_12px_rgba(16,185,129,0.25)] font-bold'
@@ -178,7 +220,7 @@ export default function InferencePipelineInspector({
                 onClick={() => setIsFormulaModalOpen(true)}
                 className="px-2.5 py-1 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/40 rounded flex items-center gap-1 font-bold transition-all"
               >
-                <Calculator className="w-3.5 h-3.5" /> Show Math Formulas &amp; Dims
+                <Calculator className="w-3.5 h-3.5" /> Show Math &amp; Input Lineage
               </button>
               <span className="text-zinc-400">
                 Token ID = <strong className="text-indigo-400">{comp.inputToken}</strong>
@@ -216,7 +258,7 @@ export default function InferencePipelineInspector({
                   onClick={() => setIsFormulaModalOpen(true)}
                   className="px-2.5 py-1 bg-violet-600/30 hover:bg-violet-600/50 text-violet-300 border border-violet-500/40 rounded flex items-center gap-1 font-bold transition-all"
                 >
-                  <Calculator className="w-3.5 h-3.5" /> Show Math Formulas &amp; Dims
+                  <Calculator className="w-3.5 h-3.5" /> Show Math &amp; Input Lineage
                 </button>
                 <span className="text-zinc-400">
                   Residual Stream Vector h_dec Layer {layerIdx + 1} (16-dim)
@@ -254,7 +296,7 @@ export default function InferencePipelineInspector({
                 onClick={() => setIsFormulaModalOpen(true)}
                 className="px-2.5 py-1 bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 border border-emerald-500/40 rounded flex items-center gap-1 font-bold transition-all"
               >
-                <Calculator className="w-3.5 h-3.5" /> Show Math Formulas &amp; Dims
+                <Calculator className="w-3.5 h-3.5" /> Show Math &amp; Input Lineage
               </button>
               <span className="text-emerald-400 font-bold">
                 Logit Margin Δz = {comp.logitMargin.toFixed(3)}
@@ -331,11 +373,14 @@ export default function InferencePipelineInspector({
         </div>
       )}
 
-      {/* Computation Formula Modal */}
+      {/* Computation Formula & Input Attribution Modal */}
       <ComputationFormulaModal
         isOpen={isFormulaModalOpen}
         onClose={() => setIsFormulaModalOpen(false)}
         stage={activeStage}
+        stepTrace={stepTrace}
+        currentStep={currentStep}
+        selectedEpoch={selectedEpoch}
       />
     </div>
   );
