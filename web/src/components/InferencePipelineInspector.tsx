@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AutoregressiveStepTrace, STOP_TOKEN, PAD_TOKEN } from '../model/graph_transformer';
-import { Cpu, ArrowRight, Layers, Zap, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Cpu, ArrowRight, Layers, Zap, CheckCircle2, AlertTriangle, Calculator } from 'lucide-react';
+import ComputationFormulaModal from './ComputationFormulaModal';
 
 interface InferencePipelineInspectorProps {
   stepTrace: AutoregressiveStepTrace;
@@ -17,6 +18,7 @@ export default function InferencePipelineInspector({
 }: InferencePipelineInspectorProps) {
   const [activeStage, setActiveStage] = useState<PipelineStage>('classifier');
   const [selectedTokenIndex, setSelectedTokenIndex] = useState<number>(0); // Index in topK / snippet
+  const [isFormulaModalOpen, setIsFormulaModalOpen] = useState<boolean>(false);
 
   const targetToken = currentStep + 1 < groundTruthSP.length
     ? groundTruthSP[currentStep + 1]
@@ -171,9 +173,17 @@ export default function InferencePipelineInspector({
               <Layers className="w-4 h-4 text-indigo-400" />
               Stage 1: Input Representation Construction (Token Embedding + Sinusoidal PE)
             </h3>
-            <span className="text-[11px] font-mono text-zinc-400">
-              Token ID = <strong className="text-indigo-400">{comp.inputToken}</strong>
-            </span>
+            <div className="flex items-center gap-3 font-mono text-[11px]">
+              <button
+                onClick={() => setIsFormulaModalOpen(true)}
+                className="px-2.5 py-1 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/40 rounded flex items-center gap-1 font-bold transition-all"
+              >
+                <Calculator className="w-3.5 h-3.5" /> Show Math Formulas &amp; Dims
+              </button>
+              <span className="text-zinc-400">
+                Token ID = <strong className="text-indigo-400">{comp.inputToken}</strong>
+              </span>
+            </div>
           </div>
 
           <p className="text-xs text-zinc-400 leading-relaxed">
@@ -201,9 +211,17 @@ export default function InferencePipelineInspector({
                 <Layers className="w-4 h-4 text-cyan-400" />
                 Decoder Layer {layerIdx + 1} Transformer Block Transformation
               </h3>
-              <span className="text-[11px] font-mono text-zinc-400">
-                Residual Stream Vector h_dec Layer {layerIdx + 1} (16-dim)
-              </span>
+              <div className="flex items-center gap-3 font-mono text-[11px]">
+                <button
+                  onClick={() => setIsFormulaModalOpen(true)}
+                  className="px-2.5 py-1 bg-violet-600/30 hover:bg-violet-600/50 text-violet-300 border border-violet-500/40 rounded flex items-center gap-1 font-bold transition-all"
+                >
+                  <Calculator className="w-3.5 h-3.5" /> Show Math Formulas &amp; Dims
+                </button>
+                <span className="text-zinc-400">
+                  Residual Stream Vector h_dec Layer {layerIdx + 1} (16-dim)
+                </span>
+              </div>
             </div>
 
             <p className="text-xs text-zinc-400 leading-relaxed">
@@ -231,9 +249,17 @@ export default function InferencePipelineInspector({
               <Zap className="w-4 h-4 text-emerald-400" />
               Stage 4: Linear Classifier z = h_dec W_out + b_out &amp; Logit Margin Δz
             </h3>
-            <span className="text-[11px] font-mono text-emerald-400 font-bold">
-              Logit Margin Δz = {comp.logitMargin.toFixed(3)}
-            </span>
+            <div className="flex items-center gap-3 font-mono text-[11px]">
+              <button
+                onClick={() => setIsFormulaModalOpen(true)}
+                className="px-2.5 py-1 bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 border border-emerald-500/40 rounded flex items-center gap-1 font-bold transition-all"
+              >
+                <Calculator className="w-3.5 h-3.5" /> Show Math Formulas &amp; Dims
+              </button>
+              <span className="text-emerald-400 font-bold">
+                Logit Margin Δz = {comp.logitMargin.toFixed(3)}
+              </span>
+            </div>
           </div>
 
           <p className="text-xs text-zinc-400 leading-relaxed">
@@ -304,6 +330,13 @@ export default function InferencePipelineInspector({
           </div>
         </div>
       )}
+
+      {/* Computation Formula Modal */}
+      <ComputationFormulaModal
+        isOpen={isFormulaModalOpen}
+        onClose={() => setIsFormulaModalOpen(false)}
+        stage={activeStage}
+      />
     </div>
   );
 }

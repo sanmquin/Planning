@@ -7,7 +7,7 @@ interface GraphVisualizerProps {
   currentStep: number;
   predictedSP: number[];
   groundTruthSP: number[];
-  modelEpoch: "300" | "400";
+  modelEpoch: "300" | "400" | "500";
 }
 
 export default function GraphVisualizer({
