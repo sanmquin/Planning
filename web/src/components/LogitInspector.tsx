@@ -34,7 +34,11 @@ export default function LogitInspector({
         </div>
 
         <div className="flex items-center gap-2 text-xs font-mono">
-          <span className="text-zinc-400">Step {currentStep + 1} Target Token:</span>
+          <span className="text-zinc-400">Logit Margin Δz:</span>
+          <span className="px-2 py-0.5 rounded bg-zinc-950 border border-zinc-800 text-amber-300 font-bold">
+            {stepTrace.computationTrace?.logitMargin.toFixed(3) ?? 'N/A'}
+          </span>
+          <span className="text-zinc-400">Target Token:</span>
           <span className="px-2 py-0.5 rounded bg-zinc-800 text-sky-300 font-bold">
             {targetToken === STOP_TOKEN ? 'STOP (41)' : targetToken === PAD_TOKEN ? 'PAD (40)' : targetToken}
           </span>
