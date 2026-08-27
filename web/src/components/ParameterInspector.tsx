@@ -15,6 +15,18 @@ export default function ParameterInspector() {
     return arr.flatMap(flatten);
   };
 
+  // Compute actual total parameters from weight tensors
+  const totalParams = paramKeys.reduce((acc, key) => {
+    const tensor = weights300[key];
+    return acc + flatten(tensor).length;
+  }, 0);
+
+  const trainableParams = paramKeys.reduce((acc, key) => {
+    if (key === 'pos_encoder.pe') return acc;
+    const tensor = weights300[key];
+    return acc + flatten(tensor).length;
+  }, 0);
+
   const flatValues = paramData ? flatten(paramData) : [];
   const count = flatValues.length;
   const mean = count > 0 ? flatValues.reduce((a, b) => a + b, 0) / count : 0;
@@ -27,15 +39,16 @@ export default function ParameterInspector() {
         <div>
           <h2 className="text-base font-bold text-zinc-100 flex items-center gap-2">
             <Database className="w-5 h-5 text-violet-400" />
-            Network Parameter Inspector (13,802 Parameters)
+            Network Parameter Inspector ({totalParams.toLocaleString()} Parameters)
           </h2>
           <p className="text-xs text-zinc-400 mt-0.5">
-            Deep-dive weight matrix inspector across Token Embeddings, Multi-Head Attention, GELU FFNs, and FC Classifier.
+            Architecture Specs: <span className="font-mono text-zinc-200 font-semibold">vocab_size=42, embed_dim=16, num_heads=2, hidden_dim=32, num_layers=2</span> (2 Encoder + 2 Decoder layers).
           </p>
         </div>
 
-        <div className="text-xs font-mono text-zinc-400 bg-zinc-950 px-3 py-1 rounded border border-zinc-800">
-          Total Parameters: <strong className="text-violet-400">13,802</strong>
+        <div className="flex flex-col items-end text-xs font-mono text-zinc-400 bg-zinc-950 px-3 py-1.5 rounded border border-zinc-800">
+          <div>Total Parameters: <strong className="text-violet-400">{totalParams.toLocaleString()}</strong></div>
+          <div className="text-[10px] text-zinc-500">Trainable Weights: {trainableParams.toLocaleString()}</div>
         </div>
       </div>
 
