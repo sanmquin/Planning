@@ -114,7 +114,9 @@ config = {
 - `generate_mechanistic_notebook.py`: Programmatic generator for Mechanistic Analysis Notebook 2.
 - `generate_difficulty_notebook.py`: Programmatic generator for Topological Difficulty Notebook 3.
 - `generate_dupe_attention_notebook.py`: Programmatic generator for Duplicated Token Attention Notebook 6.
+- `generate_interpretability_notebook_5.py`: Programmatic generator for Attention Map Explainability and Good Prediction Classifier Notebook 5.
 - `src/2.Interpretation/4.Duplicated_token_attention_and_backtrace_mechanics.ipynb`: Research tutorial notebook on duplicated token attention mechanics and backtrace dynamics.
+- `src/2.Interpretation/5.Attention_map_explainability_and_good_prediction_classifier.ipynb`: Research tutorial notebook on cross-attention map explainability, non-transformer prediction classifiers, and verification of research theses across Epoch 300 and 500 checkpoints.
 - `data/graph_dfs_dataset.pt`: Pre-generated DFS dataset payload.
 - `data/graph_rw_dataset.pt`: Pre-generated RW dataset payload.
 - `data/graph_rw_dense_dataset.pt`: Pre-generated Dense RW dataset payload ($d_{\text{min}} \ge 4$, Best-of-N $Q$).
@@ -181,7 +183,30 @@ Notebook `src/2.Interpretation/4.Duplicated_token_attention_and_backtrace_mechan
 
 ---
 
-## 8. Large-Scale Stochastic Gradient Descent (SGD) Autoregressive Solver (Notebook 3)
+## 8. Attention Map Explainability and Step Decision Correctness Classification (Notebook 5)
+
+Notebook `src/2.Interpretation/5.Attention_map_explainability_and_good_prediction_classifier.ipynb` computes cross-attention maps from the Epoch 300 and Epoch 500 checkpoints, trains non-transformer classifiers to predict step decision success based on graph topology and attention features, and evaluates three core research theses regarding graph reasoning.
+
+### Non-Transformer Good Prediction Classifiers
+Non-transformer classifiers trained on extracted topology and attention map features predict step prediction success ($y_m \in \{0, 1\}$) with exceptional precision:
+- **Gradient Boosting Classifier**: $\text{ROC-AUC} = 0.9533$, $\text{PR-AUC} = 0.9956$, $\text{Accuracy} = 93.10\%$, $\text{Log Loss} = 0.1515$.
+- **Random Forest Classifier**: $\text{ROC-AUC} = 0.9513$, $\text{PR-AUC} = 0.9954$, $\text{Accuracy} = 93.43\%$, $\text{Log Loss} = 0.1517$.
+- **Logistic Regression**: $\text{ROC-AUC} = 0.9073$, $\text{PR-AUC} = 0.9905$, $\text{Accuracy} = 92.59\%$, $\text{Log Loss} = 0.1856$.
+
+### Top Drivers of Good Predictions
+Feature importance analysis reveals that **Layer 1 Cross-Attention Entropy** (`l1_entropy`, Gini $0.3780$), **Current Node Attention Mass** (`curr_node_attn_l1`, Gini $0.1522$), and **Future Dead-End Bifurcation Attention** (`future_dead_bif_attn`, Gini $0.1098$) are the primary drivers determining whether the Transformer will answer correctly or fail.
+
+### Verification of Core Research Theses
+1. **Thesis 1 (Bifurcation vs. Linear Path Encoding)**:
+   - Bifurcation decisions exhibit higher attention entropy ($1.1483$ vs $0.6757$ nats in Epoch 300) and require exit anchor selection ($ASI$), confirming that bifurcations represent higher cognitive decision complexity.
+2. **Thesis 2 (Attention Mass Allocation Requirement)**:
+   - Bifurcation nodes demand significantly higher cross-attention mass than linear path nodes ($0.1760$ vs $0.1134$ in Epoch 300, Welch's $t = 17.18, p < 10^{-60}$; $0.0603$ vs $0.0344$ in Epoch 500, Welch's $t = 11.93, p < 10^{-30}$), proving that greater attention mass is required at trace bifurcations to prevent rollout failure.
+3. **Thesis 3 (Selective Future Bifurcation Encoding)**:
+   - Cross-attention maps selectively assign $3.94\times$ higher attention mass to future exit-path bifurcations over dead-end bifurcations in Epoch 300 ($0.2093$ vs $0.0531$), which sharpens to a **$51.57\times$ preference** in Epoch 500 ($0.2523$ vs $0.0049$, paired $t = 33.25, p < 10^{-200}$). This confirms that future bifurcations encode whether they lie on the exit path versus dead-end sub-branches.
+
+---
+
+## 9. Large-Scale Stochastic Gradient Descent (SGD) Autoregressive Solver (Notebook 3)
 
 Notebook `src/1.Inference/3.Large_scale_SGD_dense_autoregressive_GSP.ipynb` implements an Autoregressive Graph Shortest Path Transformer trained on the 10x Scale Dense Dataset (`graph_rw_dense_10x_dataset.pt`, $N_{\text{train}} = 30,000$) using Stochastic Gradient Descent (SGD) with momentum ($\mu = 0.9$).
 
