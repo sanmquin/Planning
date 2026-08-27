@@ -23,23 +23,31 @@ export default function AttentionHeatmap({
   attentionType,
   onSelectType
 }: AttentionHeatmapProps) {
+  const [viewMode, setViewMode] = useState<'single' | 'both'>('both');
   const [hoveredCell, setHoveredCell] = useState<{
+    head: number;
     q: number;
     k: number;
     val: number;
   } | null>(null);
 
-  let matrix: number[][] = [];
-  if (attentionType === 'cross') {
-    const layerData = stepTrace.decoderCrossAttn[selectedLayer];
-    matrix = layerData?.crossAttnHeads?.[selectedHead]?.attnWeights || [];
-  } else if (attentionType === 'decoder_self') {
-    const layerData = stepTrace.decoderSelfAttn[selectedLayer];
-    matrix = layerData?.selfAttnHeads?.[selectedHead]?.attnWeights || [];
-  } else {
-    const layerData = stepTrace.encoderSelfAttn[selectedLayer];
-    matrix = layerData?.selfAttnHeads?.[selectedHead]?.attnWeights || [];
-  }
+  const getHeadMatrix = (headIdx: number): number[][] => {
+    if (attentionType === 'cross') {
+      const layerData = stepTrace.decoderCrossAttn[selectedLayer];
+      return layerData?.crossAttnHeads?.[headIdx]?.attnWeights || [];
+    } else if (attentionType === 'decoder_self') {
+      const layerData = stepTrace.decoderSelfAttn[selectedLayer];
+      return layerData?.selfAttnHeads?.[headIdx]?.attnWeights || [];
+    } else {
+      const layerData = stepTrace.encoderSelfAttn[selectedLayer];
+      return layerData?.selfAttnHeads?.[headIdx]?.attnWeights || [];
+    }
+  };
+
+  const matrixHead0 = getHeadMatrix(0);
+  const matrixHead1 = getHeadMatrix(1);
+
+  const matrix = getHeadMatrix(selectedHead);
 
   const qLen = matrix.length;
   const kLen = matrix[0]?.length || 0;
@@ -137,10 +145,31 @@ export default function AttentionHeatmap({
             ))}
           </div>
 
-          {/* Head Selector */}
+          {/* View Mode & Head Selector */}
           <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-800 font-mono">
-            <span className="text-zinc-500 px-1 text-[11px]">Head:</span>
-            {[0, 1].map(h => (
+            <button
+              onClick={() => setViewMode('both')}
+              className={`px-2.5 py-0.5 rounded transition-all font-bold ${
+                viewMode === 'both'
+                  ? 'bg-amber-500 text-zinc-950 shadow-sm'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              Side-by-Side (H0 &amp; H1)
+            </button>
+
+            <button
+              onClick={() => setViewMode('single')}
+              className={`px-2.5 py-0.5 rounded transition-all font-bold ${
+                viewMode === 'single'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              Single Head
+            </button>
+
+            {viewMode === 'single' && [0, 1].map(h => (
               <button
                 key={h}
                 onClick={() => onSelectHead(h)}
@@ -158,79 +187,155 @@ export default function AttentionHeatmap({
       </div>
 
       {/* Heatmap Grid Section */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between text-xs font-mono text-zinc-400">
-          <span>Query Pos (Q) &darr; vs Key Tokens (K) &rarr;</span>
-          <span className="text-[11px] text-zinc-500">
-            Matrix Dimensions: {qLen} x {kLen}
-          </span>
-        </div>
+      {viewMode === 'both' ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {[0, 1].map(hIdx => {
+            const hMatrix = hIdx === 0 ? matrixHead0 : matrixHead1;
+            const hQLen = hMatrix.length;
+            const hKLen = hMatrix[0]?.length || 0;
 
-        {/* Scrollable Container with Explicit CSS Inline Grid */}
-        <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 overflow-x-auto custom-scrollbar">
-          {matrix.length > 0 && kLen > 0 ? (
-            <div className="min-w-[500px] space-y-1">
-              {/* Key Column Labels Header */}
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: `80px repeat(${kLen}, minmax(0, 1fr))`
-                }}
-                className="gap-1 text-[9px] font-mono text-zinc-500 text-center pb-1 border-b border-zinc-850"
-              >
-                <div className="text-left pl-1">Q \ K</div>
-                {Array.from({ length: kLen }).map((_, kIdx) => (
-                  <div key={kIdx} className="truncate" title={getKTokenLabel(kIdx)}>
-                    {kIdx < srcTokens.length ? srcTokens[kIdx] : '.'}
-                  </div>
-                ))}
+            return (
+              <div key={hIdx} className="space-y-2">
+                <div className="flex items-center justify-between text-xs font-mono text-zinc-300 font-bold border-b border-zinc-800 pb-1">
+                  <span className="flex items-center gap-1.5 text-amber-400">
+                    Head {hIdx} Attention Matrix ({hQLen} × {hKLen})
+                  </span>
+                  <span className="text-[10px] text-zinc-500 font-normal">
+                    {attentionType} Layer {selectedLayer + 1}
+                  </span>
+                </div>
+
+                <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 overflow-x-auto custom-scrollbar">
+                  {hMatrix.length > 0 && hKLen > 0 ? (
+                    <div className="min-w-[280px] space-y-1">
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: `60px repeat(${hKLen}, minmax(0, 1fr))`
+                        }}
+                        className="gap-1 text-[8px] font-mono text-zinc-500 text-center pb-1 border-b border-zinc-850"
+                      >
+                        <div className="text-left pl-1">Q \ K</div>
+                        {Array.from({ length: hKLen }).map((_, kIdx) => (
+                          <div key={kIdx} className="truncate" title={getKTokenLabel(kIdx)}>
+                            {kIdx < srcTokens.length ? srcTokens[kIdx] : '.'}
+                          </div>
+                        ))}
+                      </div>
+
+                      {hMatrix.map((row, qIdx) => (
+                        <div
+                          key={qIdx}
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: `60px repeat(${hKLen}, minmax(0, 1fr))`
+                          }}
+                          className="gap-1 items-center"
+                        >
+                          <div className="text-[9px] font-mono text-zinc-400 truncate pr-1" title={getQTokenLabel(qIdx)}>
+                            {getQTokenLabel(qIdx)}
+                          </div>
+
+                          {row.map((val, kIdx) => {
+                            const isHovered = hoveredCell?.head === hIdx && hoveredCell?.q === qIdx && hoveredCell?.k === kIdx;
+
+                            return (
+                              <div
+                                key={kIdx}
+                                onMouseEnter={() => setHoveredCell({ head: hIdx, q: qIdx, k: kIdx, val })}
+                                onMouseLeave={() => setHoveredCell(null)}
+                                style={{ backgroundColor: getCellColor(val) }}
+                                className={`aspect-square rounded-[2px] cursor-pointer transition-all duration-100 ${
+                                  isHovered
+                                    ? 'ring-2 ring-white scale-125 z-20 shadow-[0_0_10px_rgba(255,255,255,0.8)]'
+                                    : 'hover:opacity-90'
+                                }`}
+                              />
+                            );
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-6 text-center text-zinc-500 text-xs italic">
+                      No trace available for Head {hIdx}.
+                    </div>
+                  )}
+                </div>
               </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs font-mono text-zinc-400">
+            <span>Query Pos (Q) &darr; vs Key Tokens (K) &rarr;</span>
+            <span className="text-[11px] text-zinc-500">
+              Matrix Dimensions: {qLen} x {kLen}
+            </span>
+          </div>
 
-              {/* Matrix Rows */}
-              {matrix.map((row, qIdx) => (
+          <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 overflow-x-auto custom-scrollbar">
+            {matrix.length > 0 && kLen > 0 ? (
+              <div className="min-w-[500px] space-y-1">
                 <div
-                  key={qIdx}
                   style={{
                     display: 'grid',
                     gridTemplateColumns: `80px repeat(${kLen}, minmax(0, 1fr))`
                   }}
-                  className="gap-1 items-center"
+                  className="gap-1 text-[9px] font-mono text-zinc-500 text-center pb-1 border-b border-zinc-850"
                 >
-                  {/* Row Query Title */}
-                  <div className="text-[10px] font-mono text-zinc-400 truncate pr-1" title={getQTokenLabel(qIdx)}>
-                    {getQTokenLabel(qIdx)}
-                  </div>
-
-                  {/* Row Cell Values */}
-                  {row.map((val, kIdx) => {
-                    const isHovered = hoveredCell?.q === qIdx && hoveredCell?.k === kIdx;
-
-                    return (
-                      <div
-                        key={kIdx}
-                        onMouseEnter={() => setHoveredCell({ q: qIdx, k: kIdx, val })}
-                        onMouseLeave={() => setHoveredCell(null)}
-                        style={{
-                          backgroundColor: getCellColor(val)
-                        }}
-                        className={`aspect-square rounded-[2px] cursor-pointer transition-all duration-100 ${
-                          isHovered
-                            ? 'ring-2 ring-white scale-125 z-20 shadow-[0_0_10px_rgba(255,255,255,0.8)]'
-                            : 'hover:opacity-90'
-                        }`}
-                      />
-                    );
-                  })}
+                  <div className="text-left pl-1">Q \ K</div>
+                  {Array.from({ length: kLen }).map((_, kIdx) => (
+                    <div key={kIdx} className="truncate" title={getKTokenLabel(kIdx)}>
+                      {kIdx < srcTokens.length ? srcTokens[kIdx] : '.'}
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="p-8 text-center text-zinc-500 text-xs italic">
-              No attention trace available for current configuration.
-            </div>
-          )}
+
+                {matrix.map((row, qIdx) => (
+                  <div
+                    key={qIdx}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: `80px repeat(${kLen}, minmax(0, 1fr))`
+                    }}
+                    className="gap-1 items-center"
+                  >
+                    <div className="text-[10px] font-mono text-zinc-400 truncate pr-1" title={getQTokenLabel(qIdx)}>
+                      {getQTokenLabel(qIdx)}
+                    </div>
+
+                    {row.map((val, kIdx) => {
+                      const isHovered = hoveredCell?.head === selectedHead && hoveredCell?.q === qIdx && hoveredCell?.k === kIdx;
+
+                      return (
+                        <div
+                          key={kIdx}
+                          onMouseEnter={() => setHoveredCell({ head: selectedHead, q: qIdx, k: kIdx, val })}
+                          onMouseLeave={() => setHoveredCell(null)}
+                          style={{
+                            backgroundColor: getCellColor(val)
+                          }}
+                          className={`aspect-square rounded-[2px] cursor-pointer transition-all duration-100 ${
+                            isHovered
+                              ? 'ring-2 ring-white scale-125 z-20 shadow-[0_0_10px_rgba(255,255,255,0.8)]'
+                              : 'hover:opacity-90'
+                          }`}
+                        />
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-8 text-center text-zinc-500 text-xs italic">
+                No attention trace available for current configuration.
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Dynamic Hover Details Bar */}
       <div className="bg-zinc-950/80 border border-zinc-800 rounded-lg p-3 min-h-[56px] flex items-center justify-between transition-all font-mono text-xs">
@@ -241,7 +346,7 @@ export default function AttentionHeatmap({
                 Query {getQTokenLabel(hoveredCell.q)} &rarr; Key {getKTokenLabel(hoveredCell.k)}
               </p>
               <p className="text-[11px] text-zinc-400">
-                Layer {selectedLayer + 1}, Head {selectedHead} ({attentionType})
+                Layer {selectedLayer + 1}, Head {hoveredCell.head} ({attentionType})
               </p>
             </div>
             <div className="text-right">

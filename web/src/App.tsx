@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Brain, Cpu, Sparkles, Compass, GitCompare, Flame, Database, Layers } from 'lucide-react';
+import { Brain, Cpu, Sparkles, Compass, GitCompare, Flame, Database, Layers, Lock, Grid } from 'lucide-react';
 import {
   GRAPH_SAMPLES,
   GraphSample,
@@ -13,13 +13,15 @@ import ModelComparer from './components/ModelComparer';
 import LogitInspector from './components/LogitInspector';
 import InferencePipelineInspector from './components/InferencePipelineInspector';
 import ParameterInspector from './components/ParameterInspector';
+import WeightsInspector from './components/WeightsInspector';
+import VocabularyEmbeddingsInspector from './components/VocabularyEmbeddingsInspector';
 import ResearchPanel from './components/ResearchPanel';
 
-type MainTab = 'visualizer' | 'comparison' | 'attention' | 'parameters' | 'research';
+type MainTab = 'visualizer' | 'comparison' | 'attention' | 'weights' | 'vocab' | 'parameters' | 'research';
 
 export default function App() {
   const [selectedSample, setSelectedSample] = useState<GraphSample>(GRAPH_SAMPLES[0]);
-  const [modelEpoch, setModelEpoch] = useState<"300" | "400">("400");
+  const [modelEpoch, setModelEpoch] = useState<"300" | "400" | "500">("500");
   const [currentStep, setCurrentStep] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [speed, setSpeed] = useState<number>(1);
@@ -30,7 +32,7 @@ export default function App() {
   const [selectedHead, setSelectedHead] = useState<number>(0);   // Head 0 default
   const [attentionType, setAttentionType] = useState<'cross' | 'decoder_self' | 'encoder_self'>('cross');
 
-  // Run full rollout inference for both models on selected sample
+  // Run full rollout inference for models on selected sample
   const trace300: FullInferenceTrace = useMemo(() => {
     return runFullRolloutInference("300", selectedSample);
   }, [selectedSample]);
@@ -39,7 +41,11 @@ export default function App() {
     return runFullRolloutInference("400", selectedSample);
   }, [selectedSample]);
 
-  const activeTrace = modelEpoch === "300" ? trace300 : trace400;
+  const trace500: FullInferenceTrace = useMemo(() => {
+    return runFullRolloutInference("500", selectedSample);
+  }, [selectedSample]);
+
+  const activeTrace = modelEpoch === "300" ? trace300 : modelEpoch === "400" ? trace400 : trace500;
   const maxSteps = activeTrace.steps.length;
 
   // Handle sample selection
@@ -75,8 +81,8 @@ export default function App() {
           <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-500/10 border border-indigo-500/25 text-indigo-400 flex items-center gap-1 font-mono">
             <Cpu className="w-3 h-3" /> Seq2Seq AR Transformer
           </span>
-          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 font-mono">
-            Epoch 400 Exact Match: 80.0%
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-500/10 border border-indigo-500/25 text-indigo-300 font-mono">
+            Epoch 500 Exact Match: 96.4%
           </span>
         </div>
       </header>
@@ -104,7 +110,7 @@ export default function App() {
                   : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800'
               }`}
             >
-              <GitCompare className="w-3.5 h-3.5" /> Model Comparison (300 vs 400)
+              <GitCompare className="w-3.5 h-3.5" /> Checkpoints (300/400/500)
             </button>
 
             <button
@@ -115,18 +121,40 @@ export default function App() {
                   : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800'
               }`}
             >
-              <Flame className="w-3.5 h-3.5" /> Attention Heatmaps
+              <Flame className="w-3.5 h-3.5" /> Attention Heads Visualizer
+            </button>
+
+            <button
+              onClick={() => setActiveTab('weights')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-2 ${
+                activeTab === 'weights'
+                  ? 'bg-cyan-500 text-zinc-950 shadow-[0_0_12px_rgba(6,182,212,0.3)] font-bold'
+                  : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800'
+              }`}
+            >
+              <Lock className="w-3.5 h-3.5" /> Frozen Model Weights
+            </button>
+
+            <button
+              onClick={() => setActiveTab('vocab')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-2 ${
+                activeTab === 'vocab'
+                  ? 'bg-indigo-500 text-white shadow-[0_0_12px_rgba(99,102,241,0.3)] font-bold'
+                  : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800'
+              }`}
+            >
+              <Grid className="w-3.5 h-3.5" /> Vocabulary Embeddings
             </button>
 
             <button
               onClick={() => setActiveTab('parameters')}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-2 ${
                 activeTab === 'parameters'
-                  ? 'bg-cyan-500 text-zinc-950 shadow-[0_0_12px_rgba(6,182,212,0.3)] font-bold'
+                  ? 'bg-zinc-700 text-white font-bold'
                   : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800'
               }`}
             >
-              <Database className="w-3.5 h-3.5" /> Parameter Inspector
+              <Database className="w-3.5 h-3.5" /> Raw Tensors
             </button>
 
             <button
@@ -144,26 +172,23 @@ export default function App() {
           {/* Model Epoch Active Toggle */}
           <div className="flex items-center gap-2 text-xs font-mono bg-zinc-900 p-1 rounded-lg border border-zinc-800">
             <span className="text-zinc-500 px-1 text-[11px]">Active Checkpoint:</span>
-            <button
-              onClick={() => setModelEpoch("300")}
-              className={`px-2.5 py-0.5 rounded transition-all ${
-                modelEpoch === "300"
-                  ? 'bg-amber-500 text-zinc-950 font-bold'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              Epoch 300
-            </button>
-            <button
-              onClick={() => setModelEpoch("400")}
-              className={`px-2.5 py-0.5 rounded transition-all ${
-                modelEpoch === "400"
-                  ? 'bg-emerald-500 text-zinc-950 font-bold'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              Epoch 400
-            </button>
+            {(["300", "400", "500"] as const).map(ep => (
+              <button
+                key={ep}
+                onClick={() => setModelEpoch(ep)}
+                className={`px-2.5 py-0.5 rounded transition-all ${
+                  modelEpoch === ep
+                    ? ep === "300"
+                      ? 'bg-amber-500 text-zinc-950 font-bold'
+                      : ep === "400"
+                      ? 'bg-emerald-500 text-zinc-950 font-bold'
+                      : 'bg-indigo-500 text-white font-bold'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                Epoch {ep}
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -259,6 +284,7 @@ export default function App() {
             sample={selectedSample}
             trace300={trace300}
             trace400={trace400}
+            trace500={trace500}
             activeModelEpoch={modelEpoch}
             onSelectModelEpoch={setModelEpoch}
           />
@@ -278,7 +304,24 @@ export default function App() {
           />
         )}
 
-        {/* Tab 4: Parameter Inspector */}
+        {/* Tab 4: Frozen Model Weights */}
+        {activeTab === 'weights' && (
+          <WeightsInspector
+            selectedEpoch={modelEpoch}
+            onSelectEpoch={setModelEpoch}
+            activeStepTrace={activeStepTrace}
+          />
+        )}
+
+        {/* Tab 5: Vocabulary Embeddings */}
+        {activeTab === 'vocab' && (
+          <VocabularyEmbeddingsInspector
+            selectedEpoch={modelEpoch}
+            onSelectEpoch={setModelEpoch}
+          />
+        )}
+
+        {/* Tab 6: Raw Parameter Inspector */}
         {activeTab === 'parameters' && (
           <ParameterInspector />
         )}

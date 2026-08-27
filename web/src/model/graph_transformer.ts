@@ -78,7 +78,7 @@ export interface AutoregressiveStepTrace {
 }
 
 export interface FullInferenceTrace {
-  modelEpoch: "300" | "400";
+  modelEpoch: "300" | "400" | "500";
   sample: GraphSample;
   srcTokens: number[];
   paddedSrcTokens: number[];
@@ -326,7 +326,7 @@ function computeMultiHeadAttention(
 
 // Forward Pass Engine for AutoregressiveGraphTransformer
 export function runSingleStepInference(
-  modelEpoch: "300" | "400",
+  modelEpoch: "300" | "400" | "500",
   sample: GraphSample,
   currTgtSeq: number[]
 ): AutoregressiveStepTrace {
@@ -655,7 +655,7 @@ export function runSingleStepInference(
 
 // Helper to run full rollout trajectory on a sample
 export function runFullRolloutInference(
-  modelEpoch: "300" | "400",
+  modelEpoch: "300" | "400" | "500",
   sample: GraphSample
 ): FullInferenceTrace {
   const srcTokens = [...sample.trace];
@@ -665,11 +665,17 @@ export function runFullRolloutInference(
   }
 
   const groundTruthSP = [...sample.sp];
+  const targetGoalNode = groundTruthSP[groundTruthSP.length - 1];
   const steps: AutoregressiveStepTrace[] = [];
 
   const currSeq = [srcTokens[0]]; // Start token
 
   for (let s = 0; s < MAX_TGT_LEN - 1; s++) {
+    const lastTok = currSeq[currSeq.length - 1];
+    if (s > 0 && (lastTok === targetGoalNode || lastTok === STOP_TOKEN || lastTok === PAD_TOKEN)) {
+      break;
+    }
+
     const stepTrace = runSingleStepInference(modelEpoch, sample, currSeq);
     steps.push(stepTrace);
 
@@ -677,7 +683,12 @@ export function runFullRolloutInference(
     if (nextTok === STOP_TOKEN || nextTok === PAD_TOKEN) {
       break;
     }
+
     currSeq.push(nextTok);
+
+    if (nextTok === targetGoalNode) {
+      break;
+    }
   }
 
   const predictedSP = [...currSeq];
