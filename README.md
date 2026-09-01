@@ -124,6 +124,9 @@ config = {
 - `generate_decoder_only_interpretability_notebook.py`: Programmatic generator for Decoder-Only Causal Self-Attention Interpretability Notebook.
 - `src/2.Interpretation/4.Duplicated_token_attention_and_backtrace_mechanics.ipynb`: Research tutorial notebook on duplicated token attention mechanics and backtrace dynamics.
 - `src/2.Interpretation/5.Attention_map_explainability_and_good_prediction_classifier.ipynb`: Research tutorial notebook on cross-attention map explainability, non-transformer prediction classifiers, and verification of research theses across Epoch 300 and 500 checkpoints.
+- `src/4.DecoderOnlyInterpretability/1.Good_vs_bad_plans_decoder_only_interpretability.ipynb`: Research tutorial notebook on causal self-attention routing, prompt mass allocation, and Good vs. Bad plan mechanics in Decoder-Only Causal Graph Transformers.
+- `src/4.DecoderInterpretation/3.Bifurcation_and_Topological_Attention_Analysis.ipynb`: Detailed topological error profiling and causal attention mechanics notebook dissecting bifurcation dynamics, dead-end depths, and anchor selection collapse in Epoch 100 Decoder Checkpoints.
+- `generate_decoder_bifurcation_analysis_notebook.py`: Programmatic generator for Decoder-Only Bifurcation and Topological Attention Analysis Notebook.
 - `src/4.DecoderInterpretation/3.Topological_graph_complexity_good_vs_bad_plans.ipynb`: Research tutorial notebook characterizing macro-level graph topology, connectivity, and traversal complexity drivers of Good Plans vs Bad Plans using checkpoint `decoder_only_ar_graph_transformer_mid_epoch_100.pt`.
 - `generate_decoder_topological_analysis_notebook.py`: Programmatic generator for Topological Graph Complexity Analysis Notebook.
 - `data/graph_dfs_dataset.pt`: Pre-generated DFS dataset payload.
@@ -269,6 +272,31 @@ Non-transformer classifiers trained on extracted causal self-attention and graph
 
 ---
 
+## 12. Decoder-Only Bifurcation & Topological Attention Analysis (`src/4.DecoderInterpretation/3.Bifurcation_and_Topological_Attention_Analysis.ipynb`)
+
+Notebook `src/4.DecoderInterpretation/3.Bifurcation_and_Topological_Attention_Analysis.ipynb` performs a detailed topological and causal attention error profiling of the **Epoch 100 Decoder-Only Transformer** (`decoder_only_ar_graph_transformer_mid_epoch_100.pt`) across validation (158 step errors) and test sets (~306 total step errors across 12,005 step decisions).
+
+### Key Empirical Findings Across Core Metrics
+
+#### 1. Metric 1: Bifurcation vs. Single Occurrence Error Breakdown
+- **Bifurcation Step Vulnerability**: Over **82.9% of validation step errors (131 out of 158)** and **83.7% of total step errors (256 out of 306)** occur at **bifurcation decision steps** where the current node appears multiple times in the trace prompt due to DFS backtracking.
+- **Step Accuracy Disparity**: Step accuracy on single occurrence nodes is **99.43%** (50 errors out of 8,701 steps), whereas step accuracy on bifurcation nodes drops to **92.25%** (256 errors out of 3,304 steps).
+
+#### 2. Metric 2: Topological Trace Contrasts on Bifurcations (Correct vs. Incorrect)
+- **Trace Position**: Incorrect bifurcation predictions occur significantly LATER in execution trace prompts (mean last position relative to trace length = $0.8441$ for errors vs $0.5377$ for correct, Welch's $t = -22.01, p < 10^{-67}$). Late bifurcations suffer from longer context accumulation.
+- **Depth of Dead-End**: Error bifurcations involve significantly GREATER dead-end exploration depths (mean $9.00$ trace steps between entry and exit re-visit vs $7.16$ steps, Welch's $t = -3.02, p < 0.003$). Extended dead-end sub-branches introduce distractor tokens into the causal context window.
+- **Node Visit Frequency**: Error bifurcations exhibit higher node visit frequencies (31.6% have $\ge 3$ visits vs 18.1% for correct bifurcations).
+- **Order Adjacency**: In 100% of cases, the ground-truth successor path token follows the SECOND/LATER exit occurrence of the bifurcation node in the trace prompt.
+
+#### 3. Metric 3: Causal Self-Attention Mechanics Comparison
+- **Part A (Good vs. Bad Predictions on Bifurcations Only)**:
+  - **Anchor Selection Index Collapse**: Good bifurcation predictions achieve **$ASI = 0.9305$**, sharply routing attention to the exit anchor $u_{\text{later}}$. Error predictions experience severe **ASI Collapse ($0.6912$, Welch's $t = 13.20, p < 10^{-30}$)**, scattering attention mass back onto stale entry tokens $u_{\text{first}}$.
+  - **Attention Dispersion**: Error predictions exhibit severe causal prompt entropy spikes ($1.4696$ nats vs $0.7238$ nats, Welch's $t = -26.70, p < 10^{-80}$).
+- **Part B (Bifurcations vs. Single Occurrences)**:
+  - Bifurcations inherently exhibit higher causal prompt entropy ($0.7816$ nats vs $0.5230$ nats, Welch's $t = 28.53, p < 10^{-160}$) due to the cognitive complexity of resolving multiple prompt occurrences.
+
+#### 4. Non-Transformer Good Prediction Classifiers & Top Drivers
+Non-transformer classifiers (Gradient Boosting $\text{ROC-AUC} = 0.9673$, Random Forest $\text{ROC-AUC} = 0.9653$) identify **Layer 1 Causal Prompt Entropy** (`causal_entropy_l1`, Gini $0.3230$), **Relative Exit Position** (`rel_last_pos`, Gini $0.1478$), and **Layer 0 Active Node Attention** (`curr_node_attn_l0`, Gini $0.0967$) as the top topological and attention drivers predicting step success.
 ## 12. Topological Graph Complexity Analysis of Good Plans vs. Bad Plans (`src/4.DecoderInterpretation/3.Topological_graph_complexity_good_vs_bad_plans.ipynb`)
 
 Notebook `3.Topological_graph_complexity_good_vs_bad_plans.ipynb` evaluates macro-level graph structure and traversal geometry using checkpoint `decoder_only_ar_graph_transformer_mid_epoch_100.pt` on dataset `graph_dfs_dataset_v1.pt` (500 validation samples, 75.40% exact match rollout accuracy).
