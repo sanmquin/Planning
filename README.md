@@ -46,13 +46,13 @@ During traversal, whenever $t_k = t_{k-2}$, the transition represents a return s
 Sequential autoregressive rollout ($M \in [10, 20]$) over complex 1D traversal traces ($K \in [30, 50]$) evaluates the model's spatial planning and trajectory consistency.
 
 ### Good Plan Mechanics
-- **Cross-Attention Alignment**: The decoder attends to the correct contextual representations in the encoded memory $H_{src}$, identifying true forward edge transitions.
+- **Cross-Attention / Causal Alignment**: The transformer attends to the correct contextual representations in the traversal trace, identifying true forward edge transitions.
 - **Valid Path Connectivity**: Each predicted step $p_m$ forms a valid edge $(p_{m-1}, p_m) \in E_G$ on the graph, terminating strictly at goal $g$.
 - **Adjacency Compression**: The model successfully filters out return steps ($t_k = t_{k-2}$) and non-optimal loops embedded in $T$.
 
 ### Bad Plan Mechanics & Compounding Errors
-- **Early Prefix Errors**: In long target sequences ($M \in [10, 20]$), an incorrect token choice at early step $m$ introduces an off-path node into the causal decoder context.
-- **Compounding Error Propagation**: Once an invalid or off-path node is generated, the causal decoder state shifts into out-of-distribution space. Subsequent predictions fail to align with graph adjacencies, leading to premature termination or hallucinated path loops.
+- **Early Prefix Errors**: In long target sequences ($M \in [10, 20]$), an incorrect token choice at early step $m$ introduces an off-path node into the causal context.
+- **Compounding Error Propagation**: Once an invalid or off-path node is generated, the causal state shifts into out-of-distribution space. Subsequent predictions fail to align with graph adjacencies, leading to premature termination or hallucinated path loops.
 - **Rollout Error Scaling**: Because sequence match requires $M$ consecutive correct decisions, exact path match probability scales exponentially:
   $$P(\text{Exact Match}) = \prod_{m=1}^M P(p_m^* \mid p_{<m}^*, T) \approx (1 - \epsilon)^M$$
   With $M \ge 10$, even low token error rates $\epsilon \approx 0.05$ result in non-trivial rollout failure rates ($1 - 0.95^{15} \approx 53.7\%$).
@@ -104,6 +104,7 @@ config = {
 - `0.one_shot_graph_shortest_path_tutorial.ipynb`: One-Shot Non-Autoregressive Transformer tutorial.
 - `1.step_by_step_graph_shortest_path_tutorial.ipynb`: Step-by-Step Autoregressive Graph Shortest Path Transformer tutorial.
 - `src/1.Inference/3.Large_scale_SGD_dense_autoregressive_GSP.ipynb`: Large-scale Autoregressive Graph Transformer trained with SGD momentum and stochastic 1,000 / 30,000 epoch sub-sampling on 10x dense execution traces.
+- `src/3.DecoderOnly/1.Small_Easy_DecoderOnly_Autoregressive_GSP.ipynb`: Decoder-Only Causal Language Model for graph shortest path extraction over concatenated execution traces and target path tokens.
 - `2.mechanistic_interpretability_and_causal_analysis_tutorial.ipynb`: Mechanistic interpretability and causal activation patching tutorial dissecting the phase transition from Epoch 300 to Epoch 400.
 - `3.topological_difficulty_and_step_error_prediction_tutorial.ipynb`: Topological difficulty modeling and step-by-step error prediction notebook decoupling task difficulty from attention misrouting.
 - `generate_data_notebook.py`: Programmatic generator for DFS dataset notebook.
@@ -111,6 +112,7 @@ config = {
 - `generate_rw_dense_data_notebook.py`: Programmatic generator for Dense Random Walk dataset notebook.
 - `generate_notebook.py`: Programmatic generator for One-Shot Notebook.
 - `generate_ar_notebook.py`: Programmatic generator for Autoregressive Notebook.
+- `generate_decoder_only_notebook.py`: Programmatic generator for Decoder-Only Causal LLM Notebook.
 - `generate_mechanistic_notebook.py`: Programmatic generator for Mechanistic Analysis Notebook 2.
 - `generate_difficulty_notebook.py`: Programmatic generator for Topological Difficulty Notebook 3.
 - `generate_dupe_attention_notebook.py`: Programmatic generator for Duplicated Token Attention Notebook 6.
@@ -214,3 +216,15 @@ Notebook `src/1.Inference/3.Large_scale_SGD_dense_autoregressive_GSP.ipynb` impl
 - **Stochastic Sub-Sampling (1,000 / 30,000)**: In each epoch, a random subset of 1,000 training instances is sampled without replacement using `torch.utils.data.RandomSampler`. This exposes the model to the full 30,000-sample dataset across training while maintaining constant per-epoch compute requirements.
 - **First-Order SGD Dynamics**: Investigates SGD optimization behavior ($\eta = 0.01$, $\mu = 0.9$) on sequence-to-sequence causal graph transformers, evaluating gradient noise tolerance and rollout generalization over dense graphs ($k \ge 4$, decoy ratio $> 60\%$).
 - **Multi-Metric Evaluation**: Tracks Cross-Entropy Loss, Teacher-Forcing Token Accuracy, Autoregressive Rollout Exact Match %, and Path Connectivity Validity % across training epochs and held-out test evaluations.
+
+---
+
+## 10. Decoder-Only Causal Language Model Solver (Notebook 1 in `src/3.DecoderOnly/`)
+
+Notebook `src/3.DecoderOnly/1.Small_Easy_DecoderOnly_Autoregressive_GSP.ipynb` reformulates graph shortest path extraction using a **Decoder-Only Transformer Architecture**, matching the standard causal language modeling paradigm of modern Large Language Models (GPT-4, LLaMA, DeepSeek).
+
+### Key Architectural & Training Features
+- **Unified Causal Sequence Formulation**: Concatenates execution trace prompt $T = [t_1, \dots, t_K]$ and target path $P^* = [p_1^*, \dots, p_M^*]$ into a unified 1D sequence $X = [t_1, \dots, t_K, p_1^*, \dots, p_M^*, \text{STOP\_TOKEN}]$.
+- **Elimination of Cross-Attention**: Replaces Encoder-Decoder cross-attention blocks with a single stack of 4 Causal Transformer layers utilizing lower-triangular causal self-attention masking.
+- **Selective Loss Masking**: Masks out cross-entropy loss for prompt trace tokens ($i < K-1$), directing 100% of gradient updates toward predicting next path rollout tokens.
+- **Unguided Causal Rollout (`solve_graph_autoregressive`)**: Prompts the causal model with trace sequence $T$, generating path tokens step-by-step using causal self-attention over the expanding context.
