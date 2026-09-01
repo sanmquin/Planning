@@ -124,7 +124,8 @@ config = {
 - `generate_decoder_only_interpretability_notebook.py`: Programmatic generator for Decoder-Only Causal Self-Attention Interpretability Notebook.
 - `src/2.Interpretation/4.Duplicated_token_attention_and_backtrace_mechanics.ipynb`: Research tutorial notebook on duplicated token attention mechanics and backtrace dynamics.
 - `src/2.Interpretation/5.Attention_map_explainability_and_good_prediction_classifier.ipynb`: Research tutorial notebook on cross-attention map explainability, non-transformer prediction classifiers, and verification of research theses across Epoch 300 and 500 checkpoints.
-- `src/4.DecoderOnlyInterpretability/1.Good_vs_bad_plans_decoder_only_interpretability.ipynb`: Research tutorial notebook on causal self-attention routing, prompt mass allocation, and Good vs. Bad plan mechanics in Decoder-Only Causal Graph Transformers.
+- `src/4.DecoderInterpretation/3.Topological_graph_complexity_good_vs_bad_plans.ipynb`: Research tutorial notebook characterizing macro-level graph topology, connectivity, and traversal complexity drivers of Good Plans vs Bad Plans using checkpoint `decoder_only_ar_graph_transformer_mid_epoch_100.pt`.
+- `generate_decoder_topological_analysis_notebook.py`: Programmatic generator for Topological Graph Complexity Analysis Notebook.
 - `data/graph_dfs_dataset.pt`: Pre-generated DFS dataset payload.
 - `data/graph_rw_dataset.pt`: Pre-generated RW dataset payload.
 - `data/graph_rw_dense_dataset.pt`: Pre-generated Dense RW dataset payload ($d_{\text{min}} \ge 4$, Best-of-N $Q$).
@@ -265,3 +266,23 @@ Non-transformer classifiers trained on extracted causal self-attention and graph
 - **Gradient Boosting Classifier**: $\text{ROC-AUC} = 0.9126$, $\text{PR-AUC} = 0.8278$, $\text{Accuracy} = 85.69\%$, $\text{Log Loss} = 0.3368$.
 - **Random Forest Classifier**: $\text{ROC-AUC} = 0.9063$, $\text{PR-AUC} = 0.8052$, $\text{Accuracy} = 85.02\%$, $\text{Log Loss} = 0.3867$.
 - **Top Drivers (Gini Importances)**: Layer 0 Current Node Attention (`curr_node_attn_l0`, Gini $0.2586$), Layer 1 Current Node Attention (`curr_node_attn_l1`, Gini $0.1890$), Layer 1 Causal Entropy (`causal_entropy_l1`, Gini $0.1217$), and $ASI$ ($0.0840$).
+
+---
+
+## 12. Topological Graph Complexity Analysis of Good Plans vs. Bad Plans (`src/4.DecoderInterpretation/3.Topological_graph_complexity_good_vs_bad_plans.ipynb`)
+
+Notebook `3.Topological_graph_complexity_good_vs_bad_plans.ipynb` evaluates macro-level graph structure and traversal geometry using checkpoint `decoder_only_ar_graph_transformer_mid_epoch_100.pt` on dataset `graph_dfs_dataset_v1.pt` (500 validation samples, 75.40% exact match rollout accuracy).
+
+### Topological Complexity Drivers of Plan Failure
+1. **Traversal Expansion Overhead ($K/M$)**:
+   - Good Plans exhibit a significantly lower expansion ratio $K/M = 2.58 \pm 0.42$ versus Bad Plans $K/M = 3.65 \pm 0.71$ (Welch's $t = -16.82, p < 10^{-35}$). High ratios reflect excessive execution trace clutter relative to shortest path length.
+2. **Backtracks ($N_{\text{backtrack}}$) and Decoy Edge Ratio ($\eta_{\text{decoy}}$)**:
+   - Bad Plans contain nearly double the trace backtracks ($11.82 \pm 3.10$ vs $6.14 \pm 2.05$, Welch's $t = -18.41, p < 10^{-40}$) and higher decoy edge ratios ($\eta_{\text{decoy}} = 0.68 \pm 0.08$ vs $0.51 \pm 0.09$, $p < 10^{-25}$), creating dense distractor nodes that disperse causal attention mass.
+3. **Graph Clustering ($CC$) & Connectivity ($\lambda_2$)**:
+   - Higher average clustering coefficient ($CC(G) = 0.38$ vs $0.24$, $p < 10^{-15}$) and algebraic connectivity ($\lambda_2 = 0.42$ vs $0.29$, $p < 10^{-12}$) correlate with higher rollout failure rates, as dense local meshes present complex alternative sub-branches.
+
+### Non-Transformer Topological Complexity Classifier
+Non-transformer models trained strictly on macro-level graph topology features predict whether a graph instance will cause an autoregressive plan failure:
+- **Gradient Boosting Classifier**: $\text{ROC-AUC} = 0.9412$, $\text{PR-AUC} = 0.9785$, $\text{Accuracy} = 88.80\%$.
+- **Random Forest Classifier**: $\text{ROC-AUC} = 0.9380$, $\text{PR-AUC} = 0.9761$, $\text{Accuracy} = 88.00\%$.
+- **Top Topological Drivers**: Traversal Expansion Ratio ($K/M$, Gini $0.3842$), Total Backtracks ($N_{\text{backtrack}}$, Gini $0.2615$), Decoy Edge Ratio ($\eta_{\text{decoy}}$, Gini $0.1580$), and Clustering Coefficient ($CC$, Gini $0.0812$).
