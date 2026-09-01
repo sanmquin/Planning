@@ -121,6 +121,10 @@ config = {
 - `src/2.Interpretation/4.Duplicated_token_attention_and_backtrace_mechanics.ipynb`: Research tutorial notebook on duplicated token attention mechanics and backtrace dynamics.
 - `src/2.Interpretation/5.Attention_map_explainability_and_good_prediction_classifier.ipynb`: Research tutorial notebook on cross-attention map explainability, non-transformer prediction classifiers, and verification of research theses across Epoch 300 and 500 checkpoints.
 - `src/4.DecoderInterpretation/1.Decoder_Only_Representation_and_Attention_Mechanics.ipynb`: Interpretability notebook dissecting representation drift, logit margin amplification, and causal prompt attention mechanics in Decoder-Only Graph Shortest Path Transformers across Epoch 100 and Epoch 1000 checkpoints.
+- `generate_decoder_only_interpretability_notebook.py`: Programmatic generator for Decoder-Only Causal Self-Attention Interpretability Notebook.
+- `src/2.Interpretation/4.Duplicated_token_attention_and_backtrace_mechanics.ipynb`: Research tutorial notebook on duplicated token attention mechanics and backtrace dynamics.
+- `src/2.Interpretation/5.Attention_map_explainability_and_good_prediction_classifier.ipynb`: Research tutorial notebook on cross-attention map explainability, non-transformer prediction classifiers, and verification of research theses across Epoch 300 and 500 checkpoints.
+- `src/4.DecoderOnlyInterpretability/1.Good_vs_bad_plans_decoder_only_interpretability.ipynb`: Research tutorial notebook on causal self-attention routing, prompt mass allocation, and Good vs. Bad plan mechanics in Decoder-Only Causal Graph Transformers.
 - `data/graph_dfs_dataset.pt`: Pre-generated DFS dataset payload.
 - `data/graph_rw_dataset.pt`: Pre-generated RW dataset payload.
 - `data/graph_rw_dense_dataset.pt`: Pre-generated Dense RW dataset payload ($d_{\text{min}} \ge 4$, Best-of-N $Q$).
@@ -242,3 +246,22 @@ Notebook `src/4.DecoderInterpretation/1.Decoder_Only_Representation_and_Attentio
 - **Logit Margin Amplification**: Mean step decision logit margin $\Delta z = z_{\text{top1}} - z_{\text{top2}}$ expands from **6.89 logit points** at Epoch 100 to **10.08 logit points** at Epoch 1000, reflecting enhanced confidence and decision boundary stability.
 - **Causal Prompt Attention Sharpening**: Layer 1 causal attention entropy over prompt trace tokens drops from **0.58 nats** (Epoch 100) to **0.05 nats** (Epoch 1000), demonstrating razor-sharp attention allocation to key trace positions.
 - **Causal Masking Interventions**: Suppressing the target node's exit anchor in the prompt reduces target token prediction probability by **77.61%**, confirming that prompt exit anchors causally govern next path token generation.
+## 11. Decoder-Only Causal Self-Attention Interpretability & Good vs. Bad Plan Mechanics (`src/4.DecoderOnlyInterpretability/`)
+
+Notebook `src/4.DecoderOnlyInterpretability/1.Good_vs_bad_plans_decoder_only_interpretability.ipynb` investigates how good plans look different from bad plans in a **Decoder-Only Causal Graph Transformer** (`decoder_only_ar_graph_transformer_mid_epoch_100.pt`), replacing cross-attention analysis with **Causal Self-Attention Analysis** over the unified sequence $X = [t_1, \dots, t_K, p_1^*, \dots, p_M^*]$.
+
+### Integrity Verification & Logged Accuracy
+The checkpoint compatibility is verified on `graph_dfs_dataset.pt` with logged metrics across validation and test splits:
+- **Validation Set (500 samples)**: Loss = `6.6096`, Teacher-Forcing Token Acc = `23.02%`, Rollout Exact Match = `0.00%`.
+- **Test Set (500 samples)**: Loss = `6.6684`, Teacher-Forcing Token Acc = `22.05%`, Rollout Exact Match = `0.00%`.
+
+### Causal Self-Attention Mechanics: Good Plans vs. Bad Plans
+- **Prompt Attention Mass ($A_{\text{prompt}}$)**: Good plans maintain significantly higher attention mass on the trace prompt prompt region ($0.9455$ vs. $0.9141$, Welch's $t = 7.0067, p < 10^{-11}$), keeping the causal decoder anchored in graph topology.
+- **Causal Prompt Entropy ($H_{\text{prompt}}$)**: Good plans exhibit lower causal prompt entropy ($1.0482$ vs. $1.3015$ nats, Welch's $t = -13.9990, p < 10^{-30}$), reflecting focused allocation onto active exit anchors rather than attention dispersion over distractor nodes.
+- **Anchor Selection Index ($ASI$) at Trace Bifurcations**: At trace-based bifurcations, good steps strongly prefer the exit occurrence $V_{\text{later}}$ over entry occurrence $V_{\text{first}}$ ($ASI = 0.8054$ vs. $0.5119$, Welch's $t = 12.3782, p < 10^{-30}$).
+
+### Non-Transformer Good Prediction Classifiers
+Non-transformer classifiers trained on extracted causal self-attention and graph topology features predict step decision correctness without a Transformer:
+- **Gradient Boosting Classifier**: $\text{ROC-AUC} = 0.9126$, $\text{PR-AUC} = 0.8278$, $\text{Accuracy} = 85.69\%$, $\text{Log Loss} = 0.3368$.
+- **Random Forest Classifier**: $\text{ROC-AUC} = 0.9063$, $\text{PR-AUC} = 0.8052$, $\text{Accuracy} = 85.02\%$, $\text{Log Loss} = 0.3867$.
+- **Top Drivers (Gini Importances)**: Layer 0 Current Node Attention (`curr_node_attn_l0`, Gini $0.2586$), Layer 1 Current Node Attention (`curr_node_attn_l1`, Gini $0.1890$), Layer 1 Causal Entropy (`causal_entropy_l1`, Gini $0.1217$), and $ASI$ ($0.0840$).
