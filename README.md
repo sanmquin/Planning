@@ -117,6 +117,10 @@ config = {
 - `generate_difficulty_notebook.py`: Programmatic generator for Topological Difficulty Notebook 3.
 - `generate_dupe_attention_notebook.py`: Programmatic generator for Duplicated Token Attention Notebook 6.
 - `generate_interpretability_notebook_5.py`: Programmatic generator for Attention Map Explainability and Good Prediction Classifier Notebook 5.
+- `generate_decoder_interpretability_notebook.py`: Programmatic generator for Decoder-Only Representation Dynamics and Causal Self-Attention Notebook.
+- `src/2.Interpretation/4.Duplicated_token_attention_and_backtrace_mechanics.ipynb`: Research tutorial notebook on duplicated token attention mechanics and backtrace dynamics.
+- `src/2.Interpretation/5.Attention_map_explainability_and_good_prediction_classifier.ipynb`: Research tutorial notebook on cross-attention map explainability, non-transformer prediction classifiers, and verification of research theses across Epoch 300 and 500 checkpoints.
+- `src/4.DecoderInterpretation/1.Decoder_Only_Representation_and_Attention_Mechanics.ipynb`: Interpretability notebook dissecting representation drift, logit margin amplification, and causal prompt attention mechanics in Decoder-Only Graph Shortest Path Transformers across Epoch 100 and Epoch 1000 checkpoints.
 - `generate_decoder_only_interpretability_notebook.py`: Programmatic generator for Decoder-Only Causal Self-Attention Interpretability Notebook.
 - `src/2.Interpretation/4.Duplicated_token_attention_and_backtrace_mechanics.ipynb`: Research tutorial notebook on duplicated token attention mechanics and backtrace dynamics.
 - `src/2.Interpretation/5.Attention_map_explainability_and_good_prediction_classifier.ipynb`: Research tutorial notebook on cross-attention map explainability, non-transformer prediction classifiers, and verification of research theses across Epoch 300 and 500 checkpoints.
@@ -233,6 +237,15 @@ Notebook `src/3.DecoderOnly/1.Small_Easy_DecoderOnly_Autoregressive_GSP.ipynb` r
 
 ---
 
+## 11. Decoder-Only Representation Dynamics & Causal Self-Attention Mechanics (Notebook 1 in `src/4.DecoderInterpretation/`)
+
+Notebook `src/4.DecoderInterpretation/1.Decoder_Only_Representation_and_Attention_Mechanics.ipynb` investigates how training impacts a **Decoder-Only Transformer's** internal representations and causal self-attention mechanisms to find graph shortest paths, replacing cross-attention with causal prompt self-attention.
+
+### Key Mechanistic Findings
+- **Checkpoint & Dataset Verification**: Evaluates model code integrity across checkpoints `decoder_only_ar_graph_transformer_mid_epoch_100.pt` and `decoder_only_ar_graph_transformer_mid_epoch_1000.pt`. Exact match rollout accuracy increases from **75.40%** at Epoch 100 to **99.40%** at Epoch 1000 on the validation set.
+- **Logit Margin Amplification**: Mean step decision logit margin $\Delta z = z_{\text{top1}} - z_{\text{top2}}$ expands from **6.89 logit points** at Epoch 100 to **10.08 logit points** at Epoch 1000, reflecting enhanced confidence and decision boundary stability.
+- **Causal Prompt Attention Sharpening**: Layer 1 causal attention entropy over prompt trace tokens drops from **0.58 nats** (Epoch 100) to **0.05 nats** (Epoch 1000), demonstrating razor-sharp attention allocation to key trace positions.
+- **Causal Masking Interventions**: Suppressing the target node's exit anchor in the prompt reduces target token prediction probability by **77.61%**, confirming that prompt exit anchors causally govern next path token generation.
 ## 11. Decoder-Only Causal Self-Attention Interpretability & Good vs. Bad Plan Mechanics (`src/4.DecoderOnlyInterpretability/`)
 
 Notebook `src/4.DecoderOnlyInterpretability/1.Good_vs_bad_plans_decoder_only_interpretability.ipynb` investigates how good plans look different from bad plans in a **Decoder-Only Causal Graph Transformer** (`decoder_only_ar_graph_transformer_mid_epoch_100.pt`), replacing cross-attention analysis with **Causal Self-Attention Analysis** over the unified sequence $X = [t_1, \dots, t_K, p_1^*, \dots, p_M^*]$.
