@@ -113,6 +113,8 @@ config = {
 - `generate_notebook.py`: Programmatic generator for One-Shot Notebook.
 - `generate_ar_notebook.py`: Programmatic generator for Autoregressive Notebook.
 - `generate_decoder_only_notebook.py`: Programmatic generator for Decoder-Only Causal LLM Notebook.
+- `generate_dense_decoder_only_notebook.py`: Programmatic generator for Mid-Scale Dense Random Walk Decoder-Only Autoregressive Notebook.
+- `src/3.DecoderOnly/2.Mid_Dense_DecoderOnly_Autoregressive_GSP.ipynb`: Mid-scale Decoder-Only Causal Language Model solver for graph shortest path extraction over dense random walk execution traces ($d_{\text{min}} \ge 4$).
 - `generate_mechanistic_notebook.py`: Programmatic generator for Mechanistic Analysis Notebook 2.
 - `generate_difficulty_notebook.py`: Programmatic generator for Topological Difficulty Notebook 3.
 - `generate_dupe_attention_notebook.py`: Programmatic generator for Duplicated Token Attention Notebook 6.
