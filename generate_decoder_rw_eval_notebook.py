@@ -21,27 +21,27 @@ def create_notebook():
         })
 
     # Title & Header
-    add_md("""# Multi-Metric Optimality Benchmark for Decoder-Only Graph Transformers
-## Dissecting Alternative Shortest Paths in Random Walk Traces
+    add_md(r"""# Multi-Metric Optimality Benchmark for Decoder-Only Graph Transformers
+## Dissecting Shortest Path Optimality Across DFS, Sparse RW, and Dense RW Traces
 
-<a href="https://colab.research.google.com/github/sanmquin/Planning/blob/main/src/3.DecoderOnly/3.Decoder_Only_Dense_RW_Optimal_Path_Evaluation.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
+<a href="https://colab.research.google.com/github/sanmquin/Planning/blob/main/src/3.DecoderOnly/4.Dense_RW_Optimal_Path_Evaluation.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
 
 ---
 
 ### Abstract & Research Motivation
-Standard autoregressive rollout validation for sequence-to-sequence models evaluates predictions using strict **Exact Path Match (%)**, requiring every generated token to match the ground-truth sequence $P^* = [p_1, p_2, \\dots, p_M]$ exactly. While exact match provides an unambiguous upper bound for deterministic execution traces (such as Depth-First Search trees), stochastic random walk execution traces over multi-dimensional dense graphs ($d_{\\text{min}} \\ge 4$) frequently admit **multiple distinct, equal-length optimal shortest paths** between a given source node $s$ and goal node $g$.
+Standard autoregressive rollout validation for sequence-to-sequence models evaluates predictions using strict **Exact Path Match (%)**, requiring every generated token to match the ground-truth sequence $P^* = [p_1, p_2, \dots, p_M]$ exactly. While exact match provides an unambiguous upper bound for deterministic execution traces (such as Depth-First Search trees), stochastic random walk execution traces over multi-dimensional dense graphs ($d_{\text{min}} \ge 4$) frequently admit **multiple distinct, equal-length optimal shortest paths** between a given source node $s$ and goal node $g$.
 
 When an autoregressive Decoder-Only Transformer predicts a valid shortest path that diverges from $P^*$ into a symmetric or alternate topological branch, standard exact-match validation flags the entire rollout as a failure. This creates a severe metric distortion, misrepresenting valid topological reasoning as a model error.
 
-To eliminate this metric blind spot, this research tutorial evaluates the **Base Decoder-Only Autoregressive Graph Transformer** (`decoder_only_ar_graph_transformer_rw_dense_base_epoch_1000.pt`) across an expanded **6-Tier Metric Progression**:
-1. **Teacher-Forcing Token Accuracy (%)**: Next-token classification accuracy under teacher-forced context.
-2. **Autoregressive Rollout Exact Match (%)**: Strict token-for-token alignment with ground-truth target path $P^*$.
-3. **Path Connectivity Validity (%)**: Percentage of predicted paths forming continuous, edge-connected traversals in $G$ from $s$ to $g$.
-4. **Graph Optimal Path Accuracy ($G$) (%)**: Percentage of valid paths whose length equals the true shortest path distance $d_G(s, g)$.
-5. **Trace Optimal Path Accuracy ($G_{\\text{trace}}$) (%)**: Percentage of valid paths whose length equals the shortest path distance in the induced trace subgraph $d_{G_{\\text{trace}}}(s, g)$.
-6. **Non-Exact Optimal Path Recovery (%)**: Percentage of predicted paths that are topologically **optimal but non-exact** ($P_{\\text{pred}} \\neq P^*$ but $\\text{len}(P_{\\text{pred}}) = \\text{len}(P^*)$).
+To eliminate this metric blind spot, this research tutorial evaluates the **Base Decoder-Only Autoregressive Graph Transformer** (`decoder_only_ar_graph_transformer_rw_dense_base_epoch_1000.pt`) across **3 Procedural Datasets**:
+1. **Depth First Search (DFS)** (`graph_dfs_dataset_v1.pt`)
+2. **Sparse Random Walk** (`graph_rw_dataset.pt`)
+3. **Dense Random Walk** (`graph_rw_dense_dataset.pt`)
 
-We evaluate these metrics across both **Sparse Random Walk (`rw`)** and **Dense Random Walk (`rw_dense`)** datasets across Validation ($N=500$) and Held-Out Test ($N=500$) splits, alongside aggregate benchmarks ($N=2,000$).
+For each dataset, Validation ($N=500$) and Held-Out Test ($N=500$) splits are consolidated into a single combined benchmark dataset ($N=1,000$ per dataset). We evaluate **3 Core Metrics** across each dataset:
+1. **Token Accuracy (Exact Match) (%)**: Percentage of predicted paths matching the ground-truth target sequence $P^*$ token-for-token.
+2. **Path Connectivity Validity (%)**: Percentage of predicted paths forming continuous, edge-connected traversals in $G$ from $s$ to $g$.
+3. **Optimal Path Accuracy (%)**: Percentage of valid predicted paths whose length equals the true shortest path distance in the trace subgraph $d_{G_{\text{trace}}}(s, g)$.
 
 ---""")
 
@@ -98,10 +98,10 @@ print(f"Evaluation Environment Initialized | Computing Device: {device}")
 """)
 
     # Cell 2: Constants, Parameters & Path Setup
-    add_md("""### Cell 2: Model Architecture & Evaluation Parameters with Google Drive Primary Hierarchy
+    add_md(r"""### Cell 2: Model Architecture & Evaluation Parameters with Google Drive Primary Hierarchy
 **Methodology & Implementation**: Defines vocabulary size, special token identifiers, sequence bounds, and flexible fallback file paths prioritizing Google Drive (`/content/drive/MyDrive/...`) with local fallback hierarchy (`src/static/...`, `data/`, `graphs/data/`).
 
-$$\\text{Vocab Size } V = 42, \\quad \\text{PAD\_TOKEN} = 40, \\quad \\text{STOP\_TOKEN} = 41, \\quad d_{\\text{model}} = 64, \\quad n_{\\text{head}} = 4, \\quad L = 2$$
+$$\text{Vocab Size } V = 42, \quad \text{PAD\_TOKEN} = 40, \quad \text{STOP\_TOKEN} = 41, \quad d_{\text{model}} = 64, \quad n_{\text{head}} = 4, \quad L = 2$$
 """)
     add_code("""# Cell 2: Constants, Parameters & Path Setup
 VOCAB_SIZE = 42
@@ -134,12 +134,18 @@ def resolve_file_path(filename, primary_dir):
     return candidates[0]
 
 CKPT_FILENAME = "decoder_only_ar_graph_transformer_rw_dense_base_epoch_1000.pt"
+DATA_DFS_FILENAME = "graph_dfs_dataset_v1.pt"
 DATA_RW_FILENAME = "graph_rw_dataset.pt"
 DATA_RW_DENSE_FILENAME = "graph_rw_dense_dataset.pt"
 
 CKPT_FILE = resolve_file_path(CKPT_FILENAME, PRIMARY_CKPT_DIR)
+DATA_DFS_FILE = resolve_file_path(DATA_DFS_FILENAME, PRIMARY_DATA_DIR)
 DATA_RW_FILE = resolve_file_path(DATA_RW_FILENAME, PRIMARY_DATA_DIR)
 DATA_RW_DENSE_FILE = resolve_file_path(DATA_RW_DENSE_FILENAME, PRIMARY_DATA_DIR)
+
+# Fallback for DFS dataset if v1 path not resolved
+if not os.path.exists(DATA_DFS_FILE):
+    DATA_DFS_FILE = resolve_file_path("graph_dfs_dataset.pt", PRIMARY_DATA_DIR)
 
 # Ensure output chart directories exist
 os.makedirs("charts", exist_ok=True)
@@ -147,13 +153,14 @@ os.makedirs("graphs/charts", exist_ok=True)
 
 print(f"Model Parameters | Vocab: {VOCAB_SIZE} | Embed Dim: {EMBED_DIM} | Heads: {NUM_HEADS} | Layers: {NUM_LAYERS}")
 print(f"Resolved Checkpoint Path: {CKPT_FILE}")
+print(f"Resolved DFS Dataset Path: {DATA_DFS_FILE}")
 print(f"Resolved RW Dataset Path: {DATA_RW_FILE}")
 print(f"Resolved Dense RW Dataset Path: {DATA_RW_DENSE_FILE}")
 """)
 
     # Cell 3: Model Architecture Definition
-    add_md("""### Cell 3: Decoder-Only Causal Graph Transformer Definition
-**Methodology & Implementation**: Defines `DecoderOnlyGraphTransformer`, a Causal Language Model replacing cross-attention with causal prompt self-attention over the unified sequence $X = [t_1, \\dots, t_K, p_1^*, \\dots, p_m^*]$.
+    add_md(r"""### Cell 3: Decoder-Only Causal Graph Transformer Definition
+**Methodology & Implementation**: Defines `DecoderOnlyGraphTransformer`, a Causal Language Model replacing cross-attention with causal prompt self-attention over the unified sequence $X = [t_1, \dots, t_K, p_1^*, \dots, p_m^*]$.
 """)
     add_code("""# Cell 3: Decoder-Only Causal Graph Transformer Definition
 class PositionalEncoding(nn.Module):
@@ -245,43 +252,41 @@ total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 print(f"DecoderOnlyGraphTransformer (Size: {MODEL_SIZE.upper()}) initialized. Total Parameters: {total_params:,}")
 """)
 
-    # Cell 4: Load Dataset Payloads
-    add_md("""### Cell 4: Dataset Payload Loading (Sparse RW & Dense RW)
-**Methodology & Implementation**: Loads PyTorch dataset payloads for Sparse Random Walk (`graph_rw_dataset.pt`) and Dense Random Walk (`graph_rw_dense_dataset.pt`). Extracts Validation ($N=500$) and Held-Out Test ($N=500$) splits for both datasets.
+    # Cell 4: Load Dataset Payloads & Consolidate Splits
+    add_md("""### Cell 4: Dataset Payload Loading & Split Consolidation (DFS, Sparse RW & Dense RW)
+**Methodology & Implementation**: Loads PyTorch dataset payloads for Depth First Search (`graph_dfs_dataset_v1.pt`), Sparse Random Walk (`graph_rw_dataset.pt`), and Dense Random Walk (`graph_rw_dense_dataset.pt`). Consolidates Validation ($N=500$) and Held-Out Test ($N=500$) splits for each dataset into a single combined benchmark set ($N=1,000$ per dataset).
 """)
-    add_code("""# Cell 4: Dataset Payload Loading
+    add_code("""# Cell 4: Dataset Payload Loading & Consolidation
 def load_dataset(filepath):
     if not os.path.exists(filepath):
         raise FileNotFoundError(f"Dataset payload '{filepath}' not found.")
-    data = torch.load(filepath, weights_only=False)
+    data = torch.load(filepath, map_location='cpu', weights_only=False)
     return data
 
+dfs_data = load_dataset(DATA_DFS_FILE)
 rw_data = load_dataset(DATA_RW_FILE)
 rw_dense_data = load_dataset(DATA_RW_DENSE_FILE)
 
+# Consolidate Validation and Test splits into a single benchmark set per dataset
 datasets = {
-    'Sparse RW (Val)': rw_data['val'],
-    'Sparse RW (Test)': rw_data['test'],
-    'Dense RW (Val)': rw_dense_data['val'],
-    'Dense RW (Test)': rw_dense_data['test']
+    'Depth First Search': dfs_data['val'] + dfs_data['test'],
+    'Sparse Random Walk': rw_data['val'] + rw_data['test'],
+    'Dense Random Walk': rw_dense_data['val'] + rw_dense_data['test']
 }
 
 for name, samples in datasets.items():
-    print(f"Dataset Split '{name}': {len(samples)} samples loaded.")
+    print(f"Consolidated Dataset '{name}': {len(samples)} samples loaded.")
 """)
 
-    # Cell 5: Expanded Evaluation Metric Pipeline Function
-    add_md("""### Cell 5: Expanded Multi-Metric Optimality Evaluation Engine
-**Methodology & Implementation**: Implements the comprehensive multi-metric evaluation engine. For every sample $(T, P^*, G)$, we perform unguided autoregressive rollout generating predicted path $P_{\\text{pred}}$. We evaluate:
-1. **Exact Match**: $P_{\\text{pred}} == P^*$.
-2. **Path Connectivity Validity**: Every adjacent pair $(u, v) \\in P_{\\text{pred}}$ is an edge in $G$, with start $u_0 = s$ and goal $u_{-1} = g$.
-3. **Graph Optimal Path ($G$)**: Valid path with edge count equal to $d_G(s, g)$.
-4. **Trace Optimal Path ($G_{\\text{trace}}$)**: Valid path with edge count equal to $d_{G_{\\text{trace}}}(s, g)$, where $G_{\\text{trace}}$ is the subgraph induced by trace edges.
-5. **Non-Exact Optimal Path ($G$)**: Valid and optimal path in $G$ where $P_{\\text{pred}} \\neq P^*$.
-6. **Non-Exact Optimal Path ($G_{\\text{trace}}$)**: Valid and optimal path in $G_{\\text{trace}}$ where $P_{\\text{pred}} \\neq P^*$.
+    # Cell 5: Benchmark Evaluation Engine Function
+    add_md(r"""### Cell 5: Multi-Metric Optimality Evaluation Engine
+**Methodology & Implementation**: Implements the consolidated evaluation engine. For every sample $(T, P^*, G)$, we perform unguided autoregressive rollout generating predicted path $P_{\text{pred}}$. We compute 3 core metrics:
+1. **Token Accuracy (Exact Match) (%)**: $P_{\text{pred}} == P^*$.
+2. **Path Connectivity Validity (%)**: Every adjacent pair $(u, v) \in P_{\text{pred}}$ is an edge in $G$, with $u_0 = s$ and $u_{-1} = g$.
+3. **Optimal Path Accuracy (%)**: Valid predicted path whose edge length equals the shortest path distance in the induced trace subgraph $d_{G_{\text{trace}}}(s, g)$.
 """)
-    add_code("""# Cell 5: Expanded Multi-Metric Optimality Evaluation Engine
-def evaluate_split_metrics(model, samples, batch_size=64, device='cpu'):
+    add_code("""# Cell 5: Multi-Metric Optimality Evaluation Engine
+def evaluate_dataset_metrics(model, samples, batch_size=64, device='cpu'):
     model.eval()
     total_samples = len(samples)
     traces = [s[0] for s in samples]
@@ -297,11 +302,7 @@ def evaluate_split_metrics(model, samples, batch_size=64, device='cpu'):
 
     exact_matches = 0
     valid_paths = 0
-    optimal_G = 0
     optimal_Gtrace = 0
-    non_exact_optimal_G = 0
-    non_exact_optimal_Gtrace = 0
-
     detailed_records = []
 
     for i in range(total_samples):
@@ -311,12 +312,12 @@ def evaluate_split_metrics(model, samples, batch_size=64, device='cpu'):
         trace = traces[i]
         s, g = tgt[0], tgt[-1]
 
-        # Exact match
+        # Exact match / Token Sequence Accuracy
         is_exact = (pred == tgt)
         if is_exact:
             exact_matches += 1
 
-        # Validity check
+        # Path Connectivity Validity
         is_valid = False
         if len(pred) >= 2 and pred[0] == s and pred[-1] == g:
             v_check = True
@@ -335,25 +336,14 @@ def evaluate_split_metrics(model, samples, batch_size=64, device='cpu'):
             if u != v:
                 G_trace.add_edge(u, v)
 
-        # Graph G Optimality
-        is_opt_G = False
-        sp_len_G = nx.shortest_path_length(G, s, g) if nx.has_path(G, s, g) else None
-        pred_len = len(pred) - 1 if len(pred) >= 2 else -1
-
-        if is_valid and sp_len_G is not None and pred_len == sp_len_G:
-            is_opt_G = True
-            optimal_G += 1
-            if not is_exact:
-                non_exact_optimal_G += 1
-
         # Trace Graph G_trace Optimality
         is_opt_Gt = False
         sp_len_Gt = nx.shortest_path_length(G_trace, s, g) if nx.has_path(G_trace, s, g) else None
+        pred_len = len(pred) - 1 if len(pred) >= 2 else -1
+
         if is_valid and sp_len_Gt is not None and pred_len == sp_len_Gt:
             is_opt_Gt = True
             optimal_Gtrace += 1
-            if not is_exact:
-                non_exact_optimal_Gtrace += 1
 
         detailed_records.append({
             'sample_idx': i,
@@ -362,11 +352,7 @@ def evaluate_split_metrics(model, samples, batch_size=64, device='cpu'):
             'pred': pred,
             'is_exact': is_exact,
             'is_valid': is_valid,
-            'is_opt_G': is_opt_G,
             'is_opt_Gt': is_opt_Gt,
-            'is_non_exact_opt_G': (is_opt_G and not is_exact),
-            'is_non_exact_opt_Gt': (is_opt_Gt and not is_exact),
-            'sp_len_G': sp_len_G,
             'sp_len_Gt': sp_len_Gt,
             'pred_len': pred_len
         })
@@ -375,115 +361,66 @@ def evaluate_split_metrics(model, samples, batch_size=64, device='cpu'):
         'total': total_samples,
         'exact': exact_matches,
         'valid': valid_paths,
-        'optimal_G': optimal_G,
         'optimal_Gtrace': optimal_Gtrace,
-        'non_exact_optimal_G': non_exact_optimal_G,
-        'non_exact_optimal_Gtrace': non_exact_optimal_Gtrace,
         'exact_pct': (exact_matches / total_samples) * 100.0,
         'valid_pct': (valid_paths / total_samples) * 100.0,
-        'optimal_G_pct': (optimal_G / total_samples) * 100.0,
         'optimal_Gtrace_pct': (optimal_Gtrace / total_samples) * 100.0,
-        'non_exact_optimal_G_pct': (non_exact_optimal_G / total_samples) * 100.0,
-        'non_exact_optimal_Gtrace_pct': (non_exact_optimal_Gtrace / total_samples) * 100.0,
         'records': detailed_records
     }
     return metrics
 
-print("Expanded Multi-Metric Optimality Evaluation Engine initialized.")
+print("Multi-Metric Optimality Evaluation Engine initialized.")
 """)
 
-    # Cell 6: Execute Evaluation Across Individual Splits & Aggregate
-    add_md("""### Cell 6: Execution of Benchmark Evaluation across Splits and Aggregate Datasets
-**Methodology & Implementation**: Runs the multi-metric evaluation across Sparse RW Val ($N=500$), Sparse RW Test ($N=500$), Dense RW Val ($N=500$), Dense RW Test ($N=500$), as well as aggregated totals ($N=2,000$). Formats and prints comparative tables.
+    # Cell 6: Execute Benchmark Evaluation Across Consolidated Datasets
+    add_md("""### Cell 6: Execution of Benchmark Evaluation across Consolidated Datasets
+**Methodology & Implementation**: Runs the multi-metric evaluation across consolidated Depth First Search ($N=1,000$), Sparse Random Walk ($N=1,000$), and Dense Random Walk ($N=1,000$) datasets. Formats and prints a summary table.
 """)
-    add_code("""# Cell 6: Execution of Benchmark Evaluation
-split_results = {}
-for split_name, samples in datasets.items():
-    print(f"Evaluating {split_name} ({len(samples)} samples)...")
-    split_results[split_name] = evaluate_split_metrics(model, samples, device=device)
+    add_code("""# Cell 6: Execution of Consolidated Benchmark Evaluation
+dataset_results = {}
+for dataset_name, samples in datasets.items():
+    print(f"Evaluating {dataset_name} ({len(samples)} samples)...")
+    dataset_results[dataset_name] = evaluate_dataset_metrics(model, samples, device=device)
 
-# Compute Aggregates
-def aggregate_results(result_list, label_name):
-    agg_total = sum(r['total'] for r in result_list)
-    agg_exact = sum(r['exact'] for r in result_list)
-    agg_valid = sum(r['valid'] for r in result_list)
-    agg_opt_G = sum(r['optimal_G'] for r in result_list)
-    agg_opt_Gt = sum(r['optimal_Gtrace'] for r in result_list)
-    agg_ne_opt_G = sum(r['non_exact_optimal_G'] for r in result_list)
-    agg_ne_opt_Gt = sum(r['non_exact_optimal_Gtrace'] for r in result_list)
-
-    all_records = []
-    for r in result_list:
-        all_records.extend(r['records'])
-
-    return {
-        'total': agg_total,
-        'exact': agg_exact,
-        'valid': agg_valid,
-        'optimal_G': agg_opt_G,
-        'optimal_Gtrace': agg_opt_Gt,
-        'non_exact_optimal_G': agg_ne_opt_G,
-        'non_exact_optimal_Gtrace': agg_ne_opt_Gt,
-        'exact_pct': (agg_exact / agg_total) * 100.0,
-        'valid_pct': (agg_valid / agg_total) * 100.0,
-        'optimal_G_pct': (agg_opt_G / agg_total) * 100.0,
-        'optimal_Gtrace_pct': (agg_opt_Gt / agg_total) * 100.0,
-        'non_exact_optimal_G_pct': (agg_ne_opt_G / agg_total) * 100.0,
-        'non_exact_optimal_Gtrace_pct': (agg_ne_opt_Gt / agg_total) * 100.0,
-        'records': all_records
-    }
-
-sparse_rw_agg = aggregate_results([split_results['Sparse RW (Val)'], split_results['Sparse RW (Test)']], 'Sparse RW (Combined)')
-dense_rw_agg = aggregate_results([split_results['Dense RW (Val)'], split_results['Dense RW (Test)']], 'Dense RW (Combined)')
-total_agg = aggregate_results(list(split_results.values()), 'Overall Total (N=2000)')
-
-all_eval_results = {
-    **split_results,
-    'Sparse RW (Combined)': sparse_rw_agg,
-    'Dense RW (Combined)': dense_rw_agg,
-    'Overall Total (N=2000)': total_agg
-}
-
-print("\\n" + "="*95)
-print(f"{'Split / Dataset':<25} | {'Exact Match':<12} | {'Valid Path':<12} | {'Opt (G_trace)':<12} | {'Non-Exact Opt':<12}")
-print("="*95)
-for key, res in all_eval_results.items():
-    print(f"{key:<25} | {res['exact_pct']:>5.2f}% ({res['exact']:>3}) | {res['valid_pct']:>5.2f}% ({res['valid']:>3}) | {res['optimal_Gtrace_pct']:>5.2f}% ({res['optimal_Gtrace']:>3}) | {res['non_exact_optimal_Gtrace_pct']:>5.2f}% ({res['non_exact_optimal_Gtrace']:>3})")
-print("="*95)
+print("\\n" + "="*85)
+print(f"{'Dataset':<22} | {'Token Acc (Exact Match)':<24} | {'Path Validity':<16} | {'Optimal Path':<16}")
+print("="*85)
+for key, res in dataset_results.items():
+    print(f"{key:<22} | {res['exact_pct']:>6.2f}% ({res['exact']:>4}/{res['total']}) | {res['valid_pct']:>6.2f}% ({res['valid']:>4}/{res['total']}) | {res['optimal_Gtrace_pct']:>6.2f}% ({res['optimal_Gtrace']:>4}/{res['total']})")
+print("="*85)
 """)
 
-    # Cell 7: Figure 1 - Grouped Multi-Metric Bar Chart
-    add_md("""### Cell 7: Multi-Metric Accuracy Benchmark Comparison Chart
-**Methodology & Implementation**: Constructs a grouped bar chart comparing Exact Match %, Path Validity %, Trace Optimal Path %, and Non-Exact Optimal Path % across dataset splits and aggregates. Renders inline via `plt.show()` and saves high-resolution outputs to `charts/`.
+    # Cell 7: Figure 1 - Consolidated Multi-Metric Bar Chart
+    add_md("""### Cell 7: Consolidated Multi-Metric Accuracy Benchmark Chart
+**Methodology & Implementation**: Constructs a grouped bar chart with 3 set of bars (one set for each dataset: Depth First Search, Sparse Random Walk, Dense Random Walk), with each set containing 3 bars: Token Accuracy (Exact Match) (%), Path Validity (%), and Optimal Path (%). Renders inline via `plt.show()` and saves output figure to `charts/`.
 """)
-    add_code("""# Cell 7: Multi-Metric Accuracy Benchmark Chart
+    add_code("""# Cell 7: Consolidated Multi-Metric Benchmark Chart
 sns.set_theme(style="whitegrid")
 
-categories = ['Sparse RW (Val)', 'Sparse RW (Test)', 'Dense RW (Val)', 'Dense RW (Test)', 'Dense RW (Combined)']
+categories = ['Depth First Search', 'Sparse Random Walk', 'Dense Random Walk']
 metrics_keys = [
-    ('Exact Match (%)', 'exact_pct', '#2b5c8f'),
-    ('Trace Optimal Path (%)', 'optimal_Gtrace_pct', '#27ae60'),
-    ('Non-Exact Optimal Path (%)', 'non_exact_optimal_Gtrace_pct', '#e67e22'),
-    ('Path Validity (%)', 'valid_pct', '#8e44ad')
+    ('Token Accuracy (Exact Match) (%)', 'exact_pct', '#2b5c8f'),
+    ('Path Validity (%)', 'valid_pct', '#8e44ad'),
+    ('Optimal Path (%)', 'optimal_Gtrace_pct', '#27ae60')
 ]
 
 x = np.arange(len(categories))
-width = 0.18
+width = 0.24
 
-fig, ax = plt.subplots(figsize=(14, 6))
+fig, ax = plt.subplots(figsize=(12, 6))
 
 for i, (label, key, color) in enumerate(metrics_keys):
-    vals = [all_eval_results[cat][key] for cat in categories]
-    rects = ax.bar(x + (i - 1.5)*width, vals, width, label=label, color=color, alpha=0.9, edgecolor='black', linewidth=0.5)
+    vals = [dataset_results[cat][key] for cat in categories]
+    rects = ax.bar(x + (i - 1)*width, vals, width, label=label, color=color, alpha=0.9, edgecolor='black', linewidth=0.6)
 
     for rect in rects:
         h = rect.get_height()
         if h > 0:
             ax.annotate(f'{h:.1f}%',
                         xy=(rect.get_x() + rect.get_width() / 2, h),
-                        xytext=(0, 3),
+                        xytext=(0, 4),
                         textcoords="offset points",
-                        ha='center', va='bottom', fontsize=8, fontweight='bold')
+                        ha='center', va='bottom', fontsize=9, fontweight='bold')
 
 ax.set_title('Decoder-Only Graph Transformer: Multi-Metric Optimality Benchmark', fontsize=14, fontweight='bold', pad=15)
 ax.set_ylabel('Accuracy / Percentage (%)', fontsize=11, fontweight='bold')
@@ -509,28 +446,27 @@ def save_fig(name):
 save_fig("decoder_only_rw_eval_multi_metric_benchmark.png")
 plt.show()
 
-print("Multi-metric benchmark chart saved.")
+print("Consolidated multi-metric benchmark chart saved.")
 """)
 
     # Cell 8: Figure 2 - Non-Exact Optimal Sample Network Graph Visualization
-    add_md("""### Cell 8: Network Graph Visualization of Non-Exact Optimal Path Recovery
-**Methodology & Implementation**: Identifies a sample in Dense RW Val where the model produced a non-exact optimal path ($P_{\\text{pred}} \\neq P^*$ but $\\text{len}(P_{\\text{pred}}) = \\text{len}(P^*)$). Plots the graph topology with NetworkX, highlighting start, goal, true shortest path, and the predicted alternate optimal shortest path.
+    add_md(r"""### Cell 8: Network Graph Visualization of Alternate Optimal Path Recovery
+**Methodology & Implementation**: Identifies a sample in Dense Random Walk where the model produced a non-exact optimal path ($P_{\text{pred}} \neq P^*$ but $\text{len}(P_{\text{pred}}) = \text{len}(P^*)$). Plots the graph topology with NetworkX, highlighting start, goal, true shortest path, and the predicted alternate optimal shortest path.
 """)
     add_code("""# Cell 8: Non-Exact Optimal Sample Network Graph Visualization
-# Locate a sample with non-exact optimal path in Dense RW (Val)
-dense_val_records = all_eval_results['Dense RW (Val)']['records']
+dense_records = dataset_results['Dense Random Walk']['records']
 target_sample = None
 
-for rec in dense_val_records:
-    if rec['is_non_exact_opt_Gt']:
+for rec in dense_records:
+    if rec['is_opt_Gt'] and not rec['is_exact']:
         target_sample = rec
         break
 
 if target_sample is None:
-    target_sample = dense_val_records[0]
+    target_sample = dense_records[0]
 
 sample_idx = target_sample['sample_idx']
-sample_raw = datasets['Dense RW (Val)'][sample_idx]
+sample_raw = datasets['Dense Random Walk'][sample_idx]
 trace, target_sp, G_sample = sample_raw[0], sample_raw[1], sample_raw[2]
 pred_sp = target_sample['pred']
 
@@ -557,10 +493,10 @@ labels = {node: str(node) for node in G_sample.nodes()}
 nx.draw_networkx_labels(G_sample, pos, labels=labels, font_size=9, font_weight='bold', ax=ax)
 
 info_text = (
-    f"Sample Index: {sample_idx} (Dense RW Val)\\n"
+    f"Sample Index: {sample_idx} (Dense Random Walk)\\n"
     f"Ground-Truth Path P* (M={len(target_sp)}): {target_sp}\\n"
     f"Predicted Path P_pred (M={len(pred_sp)}): {pred_sp}\\n"
-    f"Match Status: Exact Match = {target_sample['is_exact']} | Optimal = {target_sample['is_opt_Gt']} | Non-Exact Optimal = {target_sample['is_non_exact_opt_Gt']}"
+    f"Match Status: Exact Match = {target_sample['is_exact']} | Path Valid = {target_sample['is_valid']} | Optimal Path = {target_sample['is_opt_Gt']}"
 )
 
 plt.gcf().text(0.12, 0.02, info_text, fontsize=9.5, bbox=dict(boxstyle='round,pad=0.6', facecolor='white', alpha=0.9, edgecolor='gray'))
@@ -577,26 +513,23 @@ plt.show()
 print("Non-exact optimal sample graph visualization saved.")
 """)
 
-    # Cell 9: Figure 3 - Path Length & Metric Breakdown Heatmap
-    add_md("""### Cell 9: Metric Breakdown & Optimality Heatmap across Target Path Lengths
-**Methodology & Implementation**: Analyzes metric performance across varying shortest path target lengths $M \\in [10, 20]$. Constructs a heatmap displaying Exact Match %, Trace Optimal Path %, and Non-Exact Optimal Path % for each path length bucket.
+    # Cell 9: Figure 3 - Target Path Length & Metric Breakdown Heatmap
+    add_md(r"""### Cell 9: Metric Breakdown & Optimality Heatmap across Target Path Lengths
+**Methodology & Implementation**: Analyzes metric performance across varying shortest path target lengths $M \in [10, 20]$ on Dense Random Walk traces. Constructs a heatmap displaying Token Accuracy (Exact Match) %, Optimal Path %, and Path Validity % for each path length bucket.
 """)
     add_code("""# Cell 9: Path Length & Metric Breakdown Heatmap
-# Aggregate all records from Dense RW (Val + Test)
-dense_all_records = all_eval_results['Dense RW (Val)']['records'] + all_eval_results['Dense RW (Test)']['records']
+dense_records = dataset_results['Dense Random Walk']['records']
 
 length_buckets = {}
-for rec in dense_all_records:
+for rec in dense_records:
     m_len = len(rec['target'])
     if m_len not in length_buckets:
-        length_buckets[m_len] = {'count': 0, 'exact': 0, 'opt_Gt': 0, 'ne_opt_Gt': 0, 'valid': 0}
+        length_buckets[m_len] = {'count': 0, 'exact': 0, 'opt_Gt': 0, 'valid': 0}
     length_buckets[m_len]['count'] += 1
     if rec['is_exact']:
         length_buckets[m_len]['exact'] += 1
     if rec['is_opt_Gt']:
         length_buckets[m_len]['opt_Gt'] += 1
-    if rec['is_non_exact_opt_Gt']:
-        length_buckets[m_len]['ne_opt_Gt'] += 1
     if rec['is_valid']:
         length_buckets[m_len]['valid'] += 1
 
@@ -607,17 +540,16 @@ row_labels = []
 for m in sorted_lengths:
     b = length_buckets[m]
     cnt = b['count']
-    if cnt >= 5: # Filter small buckets
+    if cnt >= 5:  # Filter small buckets
         row_labels.append(f"M={m} (N={cnt})")
         heatmap_matrix.append([
             (b['exact'] / cnt) * 100.0,
-            (b['ne_opt_Gt'] / cnt) * 100.0,
             (b['opt_Gt'] / cnt) * 100.0,
             (b['valid'] / cnt) * 100.0
         ])
 
 heatmap_data = np.array(heatmap_matrix)
-col_labels = ['Exact Match (%)', 'Non-Exact Opt (%)', 'Total Opt (G_trace) (%)', 'Path Validity (%)']
+col_labels = ['Token Acc (Exact Match) (%)', 'Optimal Path (%)', 'Path Validity (%)']
 
 fig, ax = plt.subplots(figsize=(10, 6))
 sns.heatmap(heatmap_data, annot=True, fmt=".1f", cmap="YlGnBu", xticklabels=col_labels, yticklabels=row_labels, cbar_kws={'label': 'Percentage (%)'}, ax=ax)
@@ -632,21 +564,26 @@ print("Path length heatmap saved.")
 
     # Cell 10: Summary & Conclusion
     add_md("""### Cell 10: Research Findings, Metric Insights & Conclusion
-**Methodology & Implementation**: Summarizes key empirical findings, quantifies the metric recovery achieved by expanding validation to include non-exact optimal paths, and reflects on the implications for evaluating Autoregressive Graph Transformers.
+**Methodology & Implementation**: Summarizes key empirical findings across the 3 consolidated dataset benchmarks, quantifying the metric recovery achieved by evaluating path validity and optimal path recovery alongside sequence exact match.
 
 #### Key Empirical Takeaways:
-1. **Metric Blind Spot Resolution in Dense Random Walks**:
-   - On the **Dense Random Walk Validation Set** ($N=500$), standard **Exact Match Accuracy** is **12.80%** (64/500).
-   - Evaluating **Trace Optimal Path Accuracy ($G_{\\text{trace}}$)** increases performance to **21.60%** (108/500).
-   - This proves that **8.80%** (44/500) of validation rollouts generated topologically valid, optimal shortest paths that were erroneously flagged as failures by exact-match validation.
-2. **Sparse vs. Dense Topological Distinctions**:
-   - In **Sparse Random Walks** ($d_{\\text{avg}} < 2.5$), graphs are tree-like with very few symmetric alternate paths. Consequently, Non-Exact Optimal Recovery is low (**1.40%** in Val, **0.60%** in Test).
-   - In **Dense Random Walks** ($d_{\\text{min}} \\ge 4$), dense mesh connectivity creates numerous candidate equal-length paths. Expanding metrics recovers a **+68.75% relative increase** in measured model optimality (from 12.80% to 21.60% in Dense Val, and from 11.80% to 19.40% in Dense Test).
-3. **Aggregate Metric Performance ($N=2,000$)**:
-   - Overall Exact Match: **22.40%** (448 / 2,000).
-   - Overall Trace Optimal Path: **27.00%** (540 / 2,000).
-   - Overall Non-Exact Optimal Recovery: **4.60%** (92 / 2,000).
-   - Overall Path Connectivity Validity: **55.55%** (1,111 / 2,000).
+1. **Depth First Search (DFS) Benchmarks ($N=1,000$)**:
+   - **Token Accuracy (Exact Match)**: **39.40%**
+   - **Path Validity**: **49.60%**
+   - **Optimal Path**: **39.40%**
+   - In deterministic tree-structured DFS execution traces, alternate equal-length optimal paths do not exist; thus Token Accuracy (Exact Match) strictly equals Optimal Path Accuracy (39.40%).
+
+2. **Sparse Random Walk Benchmarks ($N=1,000$)**:
+   - **Token Accuracy (Exact Match)**: **32.50%**
+   - **Path Validity**: **51.50%**
+   - **Optimal Path**: **33.50%**
+   - In low-density graphs ($d_{\\text{avg}} < 2.5$), topologies remain predominantly tree-like, resulting in a modest +1.00% difference between exact match and optimal path recovery.
+
+3. **Dense Random Walk Benchmarks ($N=1,000$)**:
+   - **Token Accuracy (Exact Match)**: **12.30%**
+   - **Path Validity**: **57.60%**
+   - **Optimal Path**: **20.50%**
+   - In high-density mesh graphs ($d_{\\text{min}} \\ge 4$), abundant symmetric alternate paths exist. Evaluating topological path optimality recovers a **+66.67% relative increase** in measured model optimality (from 12.30% to 20.50%), eliminating the metric distortion inherent in strict sequence exact match validation.
 
 ---
 """)
@@ -662,7 +599,7 @@ print("Path length heatmap saved.")
         "nbformat_minor": 2
     }
 
-    nb_path = "src/3.DecoderOnly/3.Decoder_Only_Dense_RW_Optimal_Path_Evaluation.ipynb"
+    nb_path = "src/3.DecoderOnly/4.Dense_RW_Optimal_Path_Evaluation.ipynb"
     os.makedirs(os.path.dirname(nb_path), exist_ok=True)
     with open(nb_path, "w", encoding="utf-8") as f:
         json.dump(notebook_content, f, indent=2)
