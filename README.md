@@ -355,12 +355,12 @@ Notebook `src/3.DecoderOnly/5.Multi_Model_Multi_Dataset_Evaluation.ipynb` evalua
 | Model / Dataset Key | Dataset Trace Flavor | Parameters | Epochs | Token Efficiency (%) | Path Optimality (%) | Path Validity (%) |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
 | **1. Base (DFS)** | DFS Tree Traces | 19,818 | 1000 | **99.40%** | **99.40%** | **100.00%** |
-| **2. Small (Sparse RW)** | Sparse Random Walk | 19,818 | 1000 | **85.24%** | **1.60%** | **3.60%** |
-| **3. Mid (Sparse RW)** | Sparse Random Walk | 139,306 | 1000 | **98.06%** | **80.80%** | **92.80%** |
-| **4. Mid (Dense RW)** | Dense Random Walk ($d_{\text{min}} \ge 4$) | 72,362 | 1000 | **85.22%** | **22.60%** | **55.30%** |
+| **2. Mid (Sparse RW)** | Sparse Random Walk | 139,306 | 1000 | **98.06%** | **80.80%** | **92.80%** |
+| **3. Small (Sparse RW)** | Sparse Random Walk | 19,818 | 1000 | **85.24%** | **1.60%** | **3.60%** |
+| **4. Mid (Dense RW)** | Dense Random Walk ($d_{\text{min}} \ge 4$) | 72,362 | 1000 | **85.22%** | **20.50%** | **57.60%** |
 | **5. Large Early-Stop (Dense RW)** | Dense Random Walk ($d_{\text{min}} \ge 4$) | 540,714 | 100 | **93.25%** | **41.00%** | **84.60%** |
 
 ### Key Research Insights
 1. **DFS Determinism vs. Random Walk Difficulty**: The 19.8k parameter Base model achieves near-perfect accuracy (**99.40%**) on tree-structured DFS traces, but collapses to **1.60% Path Optimality** on Sparse Random Walk traces.
-2. **Capacity Threshold for Random Walks**: Scaling model capacity from **19.8k** to **139.3k parameters** on Sparse Random Walks increases Path Optimality from **1.60% to 80.80%** and Path Validity from **3.60% to 92.80%**.
-3. **Dense Mesh Topologies**: Dense multi-dimensional mesh interconnectivity ($d_{\text{min}} \ge 4$) presents higher decision complexity, requiring a **540.7k parameter Large model** to achieve **84.60% Path Validity** and **41.00% Path Optimality**.
+2. **Capacity Threshold for Random Walks**: Scaling model capacity from **19.8k parameters** (Model 3 Small) to **139.3k parameters** (Model 2 Mid, 4 layers, $d_{\text{model}}=64$) on Sparse Random Walks increases Path Optimality from **1.60% to 80.80%** and Path Validity from **3.60% to 92.80%**.
+3. **Dense Mesh Topologies & Subgraph Optimality ($G_{\text{trace}}$)**: Evaluated consistently against the trace-induced subgraph $G_{\text{trace}}$ (matching Notebook 4), the 72.3k parameter Mid model achieves **20.50% Path Optimality** and **57.60% Path Validity**. Dense multi-dimensional mesh interconnectivity ($d_{\text{min}} \ge 4$) presents higher decision complexity, requiring a **540.7k parameter Large model** to achieve **84.60% Path Validity** and **41.00% Path Optimality**.

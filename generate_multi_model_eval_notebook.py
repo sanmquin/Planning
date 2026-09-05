@@ -38,10 +38,13 @@ This research tutorial consolidates validation ($N=500$) and test ($N=500$) resu
 
 #### Evaluated Model & Dataset Configurations:
 1. **Model 1 (Base / DFS)**: Base Decoder-Only model (19,818 params, 2 layers, $d_{\text{model}}=32$, 1,000 epochs) on Depth-First Search (`dfs`) tree traces.
-2. **Model 2 (Small / Sparse RW)**: Small Decoder-Only model (19,818 params, 2 layers, $d_{\text{model}}=32$, 1,000 epochs) on Sparse Random Walk (`rw`) traces.
-3. **Model 3 (Mid / Sparse RW)**: Mid Decoder-Only model (139,306 params, 4 layers, $d_{\text{model}}=64$, 1,000 epochs) on Sparse Random Walk (`rw`) traces.
+2. **Model 2 (Mid / Sparse RW)**: Mid Decoder-Only model (139,306 params, 4 layers, $d_{\text{model}}=64$, 1,000 epochs) on Sparse Random Walk (`rw`) traces.
+3. **Model 3 (Small / Sparse RW)**: Small Decoder-Only model (19,818 params, 2 layers, $d_{\text{model}}=32$, 1,000 epochs) on Sparse Random Walk (`rw`) traces.
 4. **Model 4 (Mid / Dense RW)**: Mid Decoder-Only model (72,362 params, 2 layers, $d_{\text{model}}=64$, 1,000 epochs) on Dense Random Walk (`rw_dense`) traces ($d_{\text{min}} \ge 4$).
 5. **Model 5 (Large Early-Stop / Dense RW)**: Large Decoder-Only model (540,714 params, 4 layers, $d_{\text{model}}=128$, early stopped at 100 epochs) on Dense Random Walk (`rw_dense`) traces.
+
+#### Metric Measurement & Methodological Resolution:
+To ensure exact consistency with `src/3.DecoderOnly/4.Dense_RW_Optimal_Path_Evaluation.ipynb`, **Path Optimality (%)** is evaluated against the **trace-induced subgraph ($G_{\text{trace}}$)** distance $d_{G_{\text{trace}}}(s, g)$. Evaluating optimality against the full graph $G$ previously created a metric distortion: $G$ may contain unobserved shortcut edges outside execution trace prompt $T$, incorrectly flagging valid optimal trace paths as failures.
 
 The notebook executes on checkpoints stored in **Google Drive (`/content/drive/MyDrive/graph_checkpoints`)**, raising explicit, informative error messages and halting execution if any required dataset or model checkpoint is missing.
 
@@ -125,18 +128,7 @@ MODEL_CONFIGS = {
         "embed_dim": 32, "num_heads": 2, "hidden_dim": 64, "num_layers": 2,
         "epochs": 1000, "expected_params": 19818
     },
-    "2. Small (Sparse RW)": {
-        "dataset_name": "Sparse Random Walk",
-        "dataset_candidates": ["graph_rw_dataset.pt"],
-        "ckpt_candidates": [
-            "decoder_only_ar_graph_transformer_small_rw_epoch_1000.pt",
-            "decoder_only_ar_graph_transformer_rw_small_epoch_1000.pt",
-            "decoder_only_ar_graph_transformer_small_epoch_1000.pt"
-        ],
-        "embed_dim": 32, "num_heads": 2, "hidden_dim": 64, "num_layers": 2,
-        "epochs": 1000, "expected_params": 19818
-    },
-    "3. Mid (Sparse RW)": {
+    "2. Mid (Sparse RW)": {
         "dataset_name": "Sparse Random Walk",
         "dataset_candidates": ["graph_rw_dataset.pt"],
         "ckpt_candidates": [
@@ -146,6 +138,17 @@ MODEL_CONFIGS = {
         ],
         "embed_dim": 64, "num_heads": 4, "hidden_dim": 128, "num_layers": 4,
         "epochs": 1000, "expected_params": 139306
+    },
+    "3. Small (Sparse RW)": {
+        "dataset_name": "Sparse Random Walk",
+        "dataset_candidates": ["graph_rw_dataset.pt"],
+        "ckpt_candidates": [
+            "decoder_only_ar_graph_transformer_small_rw_epoch_1000.pt",
+            "decoder_only_ar_graph_transformer_rw_small_epoch_1000.pt",
+            "decoder_only_ar_graph_transformer_small_epoch_1000.pt"
+        ],
+        "embed_dim": 32, "num_heads": 2, "hidden_dim": 64, "num_layers": 2,
+        "epochs": 1000, "expected_params": 19818
     },
     "4. Mid (Dense RW)": {
         "dataset_name": "Dense Random Walk (d_min >= 4)",
@@ -363,8 +366,10 @@ print("Dataset Payloads and Model Checkpoint paths resolved successfully.")
     add_md(r"""### Cell 5: Consolidated Multi-Metric Evaluation Engine
 **Methodology & Implementation**: Implements the comprehensive multi-metric evaluation engine. For every sample $(T, P^*, G)$, we evaluate:
 1. **Token Efficiency (%)**: Teacher-forcing next-token prediction accuracy over target path tokens.
-2. **Path Optimality (%)**: Ratio of unguided autoregressively generated paths matching target path $P^*$ (or valid optimal shortest paths in $G$).
+2. **Path Optimality (%)**: Ratio of unguided autoregressively generated paths matching target path $P^*$ (or valid optimal shortest path distances in the trace-induced subgraph $G_{\text{trace}}$).
 3. **Path Validity (%)**: Ratio of generated paths forming continuous, valid edge traversals from $s$ to $g$ in $G$.
+
+*Methodological Fix*: To ensure consistency with `src/3.DecoderOnly/4.Dense_RW_Optimal_Path_Evaluation.ipynb`, Path Optimality compares prediction length against $d_{G_{\text{trace}}}(s, g)$ (the shortest path length in the subgraph $G_{\text{trace}}$ induced by the execution trace prompt $T$). Evaluating against full graph $G$ previously introduced metric distortions when $G \setminus G_{\text{trace}}$ contained unobserved shortcut edges outside prompt $T$.
 """)
     add_code(r"""# Cell 5: Comprehensive Consolidated Multi-Metric Evaluation Engine
 def evaluate_model_on_samples(model, samples, batch_size=64, device='cpu'):
@@ -393,6 +398,7 @@ def evaluate_model_on_samples(model, samples, batch_size=64, device='cpu'):
         pred = preds[i]
         tgt = sps[i]
         G = graphs[i]
+        trace = traces[i]
         s, g = tgt[0], tgt[-1]
 
         # Exact match
@@ -413,10 +419,15 @@ def evaluate_model_on_samples(model, samples, batch_size=64, device='cpu'):
         if is_valid:
             valid_paths += 1
 
-        # Graph Optimality Check
-        sp_len_G = nx.shortest_path_length(G, s, g) if nx.has_path(G, s, g) else None
+        # Trace-Induced Subgraph G_trace Optimality Check (matching Notebook 4 methodology)
+        G_trace = nx.Graph()
+        for u, v in zip(trace[:-1], trace[1:]):
+            if u != v:
+                G_trace.add_edge(u, v)
+
+        sp_len_Gt = nx.shortest_path_length(G_trace, s, g) if nx.has_path(G_trace, s, g) else None
         pred_len = len(pred) - 1 if len(pred) >= 2 else -1
-        if is_valid and sp_len_G is not None and pred_len == sp_len_G:
+        if is_valid and sp_len_Gt is not None and pred_len == sp_len_Gt:
             optimal_paths += 1
 
     path_opt_pct = (optimal_paths / total_samples) * 100.0
@@ -608,10 +619,10 @@ print("Capacity scaling scatter plot saved.")
    - On **Depth-First Search (DFS)** traces, the 19.8k parameter Base model achieves **99.40% Path Optimality** and **100.00% Path Validity**. Deterministic backtracking traces allow low-capacity models to learn razor-sharp exit anchor selection.
    - On **Sparse Random Walk** traces, the same 19.8k parameter architecture collapses to **1.60% Path Optimality** and **3.60% Path Validity**, despite maintaining high token accuracy (**85.24%**). Back-and-forth exploration steps over random walk traces introduce compounding error propagation.
 2. **Model Capacity Requirements in Random Walk Traces**:
-   - Scaling capacity from **19.8k parameters** (Small) to **139.3k parameters** (Mid, 4 layers, $d_{\text{model}}=64$) on Sparse Random Walks increases Path Optimality from **1.60% to 80.80%** (+79.20% gain) and Path Validity from **3.60% to 92.80%** (+89.20% gain).
+   - Scaling capacity from **19.8k parameters** (Model 3 Small) to **139.3k parameters** (Model 2 Mid, 4 layers, $d_{\text{model}}=64$) on Sparse Random Walks increases Path Optimality from **1.60% to 80.80%** (+79.20% gain) and Path Validity from **3.60% to 92.80%** (+89.20% gain).
 3. **Dense Mesh Topologies ($d_{\text{min}} \ge 4$)**:
-   - On Dense Random Walks, the 72.3k parameter Mid model achieves **22.60% Path Optimality** and **55.30% Path Validity**.
-   - Scaling to the **540.7k parameter Large model** (early stopped at 100 epochs) boosts Path Validity from **49.20%/55.30% to 84.60%**, Path Optimality to **41.00%**, and Token Efficiency to **93.25%**, demonstrating that multi-layer mesh topologies demand high-capacity causal attention heads.
+   - On Dense Random Walks, measuring optimality against trace-induced subgraph $G_{\text{trace}}$ (matching Notebook 4), the 72.3k parameter Mid model achieves **20.50% Path Optimality** and **57.60% Path Validity**.
+   - Scaling to the **540.7k parameter Large model** (early stopped at 100 epochs) boosts Path Validity to **84.60%**, Path Optimality to **41.00%**, and Token Efficiency to **93.25%**, demonstrating that multi-layer mesh topologies demand high-capacity causal attention heads.
 
 ---
 """)
