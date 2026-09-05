@@ -131,8 +131,8 @@ config = {
 - `generate_decoder_bifurcation_analysis_notebook.py`: Programmatic generator for Decoder-Only Bifurcation and Topological Attention Analysis Notebook.
 - `src/4.DecoderInterpretation/3.Topological_graph_complexity_good_vs_bad_plans.ipynb`: Research tutorial notebook characterizing macro-level graph topology, connectivity, and traversal complexity drivers of Good Plans vs Bad Plans using checkpoint `decoder_only_ar_graph_transformer_mid_epoch_100.pt`.
 - `generate_decoder_topological_analysis_notebook.py`: Programmatic generator for Topological Graph Complexity Analysis Notebook.
-- `generate_decoder_rw_eval_notebook.py`: Programmatic generator for Multi-Metric Optimality Benchmark Notebook on Random Walk Traces.
-- `src/3.DecoderOnly/3.Decoder_Only_Dense_RW_Optimal_Path_Evaluation.ipynb`: Research tutorial notebook evaluating the Base Decoder-Only Graph Transformer (`decoder_only_ar_graph_transformer_rw_dense_base_epoch_1000.pt`) across an expanded 6-tier metric progression (exact match, path validity, graph and trace optimal path accuracy, non-exact optimal path recovery) on Sparse and Dense Random Walk datasets.
+- `generate_decoder_rw_eval_notebook.py`: Programmatic generator for Multi-Metric Optimality Benchmark Notebook across DFS, Sparse RW, and Dense RW Traces.
+- `src/3.DecoderOnly/4.Dense_RW_Optimal_Path_Evaluation.ipynb`: Research tutorial notebook evaluating the Base Decoder-Only Graph Transformer (`decoder_only_ar_graph_transformer_rw_dense_base_epoch_1000.pt`) across 3 consolidated datasets (DFS, Sparse Random Walk, Dense Random Walk) evaluating Token Accuracy (Exact Match), Path Connectivity Validity, and Optimal Path Accuracy.
 - `data/graph_dfs_dataset.pt`: Pre-generated DFS dataset payload.
 - `data/graph_rw_dataset.pt`: Pre-generated RW dataset payload.
 - `data/graph_rw_dense_dataset.pt`: Pre-generated Dense RW dataset payload ($d_{\text{min}} \ge 4$, Best-of-N $Q$).
@@ -321,24 +321,20 @@ Non-transformer models trained strictly on macro-level graph topology features p
 
 ---
 
-## 13. Multi-Metric Optimality Benchmark for Decoder-Only Graph Transformers in Dense Random Walks (`src/3.DecoderOnly/3.Decoder_Only_Dense_RW_Optimal_Path_Evaluation.ipynb`)
+## 13. Multi-Metric Optimality Benchmark for Decoder-Only Graph Transformers across DFS, Sparse RW, and Dense RW Traces (`src/3.DecoderOnly/4.Dense_RW_Optimal_Path_Evaluation.ipynb`)
 
-Notebook `src/3.DecoderOnly/3.Decoder_Only_Dense_RW_Optimal_Path_Evaluation.ipynb` evaluates the **Base Decoder-Only Autoregressive Graph Transformer** (`decoder_only_ar_graph_transformer_rw_dense_base_epoch_1000.pt`) on **Sparse Random Walk (`rw`)** and **Dense Random Walk (`rw_dense`)** execution traces across Validation ($N=500$) and Test ($N=500$) splits, alongside aggregate totals ($N=2,000$).
+Notebook `src/3.DecoderOnly/4.Dense_RW_Optimal_Path_Evaluation.ipynb` evaluates the **Base Decoder-Only Autoregressive Graph Transformer** (`decoder_only_ar_graph_transformer_rw_dense_base_epoch_1000.pt`) across 3 consolidated execution trace datasets: **Depth First Search (DFS)**, **Sparse Random Walk (RW)**, and **Dense Random Walk (Dense RW)** ($N=1,000$ per dataset).
 
 ### Key Motivation & Metric Blind Spot Resolution
-Standard exact-match validation flags a rollout as a failure whenever $P_{\text{pred}} \neq P^*$. However, stochastic random walk execution traces over multi-dimensional dense graphs ($d_{\text{min}} \ge 4$) frequently admit **multiple distinct, equal-length optimal shortest paths**. Expanding evaluation to include **Non-Exact Optimal Path Recovery** reveals that many "failures" are topologically valid, optimal shortest paths along symmetric mesh branches.
+Standard exact-match validation flags a rollout as a failure whenever $P_{\text{pred}} \neq P^*$. However, stochastic random walk execution traces over multi-dimensional dense graphs ($d_{\text{min}} \ge 4$) frequently admit **multiple distinct, equal-length optimal shortest paths**. Consolidating evaluation across 3 core metrics—Token Accuracy (Exact Match) (%), Path Connectivity Validity (%), and Optimal Path Accuracy (%)—reveals that many "failures" in dense graphs are topologically valid, optimal shortest paths along symmetric mesh branches.
 
-### Multi-Metric Empirical Benchmark Summary ($N=2,000$)
-| Split / Dataset | Exact Match (%) | Path Validity (%) | Trace Optimal ($G_{\text{trace}}$) (%) | Non-Exact Optimal Recovery (%) |
-| :--- | :---: | :---: | :---: | :---: |
-| **Sparse RW (Val)** ($N=500$) | **33.40%** (167) | **51.20%** (256) | **34.80%** (174) | **1.40%** (7) |
-| **Sparse RW (Test)** ($N=500$) | **31.60%** (158) | **51.80%** (259) | **32.20%** (161) | **0.60%** (3) |
-| **Dense RW (Val)** ($N=500$) | **12.80%** (64) | **58.00%** (290) | **21.60%** (108) | **8.80%** (44) |
-| **Dense RW (Test)** ($N=500$) | **11.80%** (59) | **57.20%** (286) | **19.40%** (97) | **7.60%** (38) |
-| **Sparse RW (Combined)** ($N=1,000$) | **32.50%** (325) | **51.50%** (515) | **33.50%** (335) | **1.00%** (10) |
-| **Dense RW (Combined)** ($N=1,000$) | **12.30%** (123) | **57.60%** (576) | **20.50%** (205) | **8.20%** (82) |
-| **Overall Total** ($N=2,000$) | **22.40%** (448) | **55.55%** (1,111) | **27.00%** (540) | **4.60%** (92) |
+### Multi-Metric Empirical Benchmark Summary ($N=3,000$)
+| Dataset | Token Accuracy (Exact Match) (%) | Path Validity (%) | Optimal Path (%) |
+| :--- | :---: | :---: | :---: |
+| **Depth First Search (DFS)** ($N=1,000$) | **39.40%** (394) | **49.60%** (496) | **39.40%** (394) |
+| **Sparse Random Walk (RW)** ($N=1,000$) | **32.50%** (325) | **51.50%** (515) | **33.50%** (335) |
+| **Dense Random Walk (Dense RW)** ($N=1,000$) | **12.30%** (123) | **57.60%** (576) | **20.50%** (205) |
 
 ### Key Research Insights
-1. **Dense Mesh Optimality Surge (+68.75% Relative Increase)**: In Dense Random Walks ($d_{\text{min}} \ge 4$), expanding the evaluation metric from exact match (12.80% Val) to trace optimal path accuracy (21.60% Val) recovers **+8.80% absolute (+68.75% relative)** in measured model capability.
-2. **Sparse vs. Dense Topology**: Sparse RW traces have few symmetric branches ($1.00\%$ non-exact optimal paths), while Dense RW traces feature rich multi-path connectivity ($8.20\%$ non-exact optimal paths).
+1. **DFS Determinism**: In deterministic tree-structured DFS execution traces, alternate equal-length optimal paths do not exist; thus Token Accuracy (Exact Match) strictly equals Optimal Path Accuracy (**39.40%**).
+2. **Dense Mesh Optimality Surge (+66.67% Relative Increase)**: In Dense Random Walks ($d_{\text{min}} \ge 4$), evaluating topological path optimality recovers a **+66.67% relative increase** in measured model optimality over exact match (**12.30%** exact match vs. **20.50%** optimal path), resolving the metric distortion in dense mesh topologies.
