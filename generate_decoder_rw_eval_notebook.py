@@ -46,10 +46,10 @@ We evaluate these metrics across both **Sparse Random Walk (`rw`)** and **Dense 
 ---""")
 
     # Cell 1: Environment Setup & Imports
-    add_md("""### Cell 1: Environment Setup & Library Imports
-**Methodology & Implementation**: We set up the environment, configure device allocation (CUDA GPU or CPU), set deterministic random seeds for reproducible evaluation, and import required scientific packages including PyTorch, NetworkX, NumPy, Matplotlib, and Seaborn.
+    add_md("""### Cell 1: Environment Setup, Library Imports, and Google Drive Mount
+**Methodology & Implementation**: Notebooks in this repository run in **Google Colab** as their primary execution environment and utilize **Google Drive (`/content/drive/MyDrive/`)** as primary storage. We mount Google Drive, configure CUDA device allocation, set deterministic random seeds for reproducible evaluation, and import required packages.
 """)
-    add_code("""# Cell 1: Environment Setup & Library Imports
+    add_code("""# Cell 1: Environment Setup, Seeds, and Google Drive Configuration
 import os
 import sys
 import math
@@ -66,6 +66,25 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 
+# Google Drive Mount & Primary Storage Setup
+def setup_colab_drive_paths():
+    try:
+        from google.colab import drive
+        drive.mount('/content/drive')
+        ckpt_dir = "/content/drive/MyDrive/graph_checkpoints"
+        data_dir = "/content/drive/MyDrive/graph_data"
+        print("Google Drive mounted successfully as primary storage.")
+    except ImportError:
+        ckpt_dir = "src/static/checkpoints"
+        data_dir = "src/static/data"
+        print("Executing in local environment with local path fallbacks.")
+
+    os.makedirs(ckpt_dir, exist_ok=True)
+    os.makedirs(data_dir, exist_ok=True)
+    return ckpt_dir, data_dir
+
+PRIMARY_CKPT_DIR, PRIMARY_DATA_DIR = setup_colab_drive_paths()
+
 # Set random seeds for reproducibility
 SEED = 42
 random.seed(SEED)
@@ -79,8 +98,8 @@ print(f"Evaluation Environment Initialized | Computing Device: {device}")
 """)
 
     # Cell 2: Constants, Parameters & Path Setup
-    add_md("""### Cell 2: Model Architecture & Evaluation Parameters
-**Methodology & Implementation**: Defines vocabulary size, special token identifiers, sequence bounds, and flexible fallback file paths for the model checkpoint and dataset payloads supporting Google Drive and local directories.
+    add_md("""### Cell 2: Model Architecture & Evaluation Parameters with Google Drive Primary Hierarchy
+**Methodology & Implementation**: Defines vocabulary size, special token identifiers, sequence bounds, and flexible fallback file paths prioritizing Google Drive (`/content/drive/MyDrive/...`) with local fallback hierarchy (`src/static/...`, `data/`, `graphs/data/`).
 
 $$\\text{Vocab Size } V = 42, \\quad \\text{PAD\_TOKEN} = 40, \\quad \\text{STOP\_TOKEN} = 41, \\quad d_{\\text{model}} = 64, \\quad n_{\\text{head}} = 4, \\quad L = 2$$
 """)
@@ -97,26 +116,32 @@ NUM_HEADS = 4
 HIDDEN_DIM = 128
 NUM_LAYERS = 2
 
-# Path Resolution Hierarchy
-def resolve_path(relative_path):
+# Path Resolution Hierarchy (Google Drive Primary -> Local Fallbacks)
+def resolve_file_path(filename, primary_dir):
+    subfolder = "checkpoints" if ("checkpoint" in filename or "decoder" in filename) else "data"
     candidates = [
-        relative_path,
-        os.path.join("..", relative_path),
-        os.path.join("..", "..", relative_path),
-        os.path.join("src", "static", os.path.basename(os.path.dirname(relative_path)), os.path.basename(relative_path)),
-        os.path.join("..", "static", os.path.basename(os.path.dirname(relative_path)), os.path.basename(relative_path)),
-        os.path.join("/content/drive/MyDrive/graph_checkpoints", os.path.basename(relative_path))
+        os.path.join(primary_dir, filename),
+        os.path.join("src", "static", subfolder, filename),
+        os.path.join("..", "static", subfolder, filename),
+        os.path.join("..", "..", "src", "static", subfolder, filename),
+        os.path.join("src", "static", "data", filename),
+        os.path.join("data", filename),
+        os.path.join("graphs", "data", filename),
     ]
-    for path in candidates:
-        if os.path.exists(path):
-            return path
-    return relative_path
+    for candidate in candidates:
+        if os.path.exists(candidate):
+            return candidate
+    return candidates[0]
 
-CKPT_FILE = resolve_path("src/static/checkpoints/decoder_only_ar_graph_transformer_rw_dense_base_epoch_1000.pt")
-DATA_RW_FILE = resolve_path("src/static/data/graph_rw_dataset.pt")
-DATA_RW_DENSE_FILE = resolve_path("src/static/data/graph_rw_dense_dataset.pt")
+CKPT_FILENAME = "decoder_only_ar_graph_transformer_rw_dense_base_epoch_1000.pt"
+DATA_RW_FILENAME = "graph_rw_dataset.pt"
+DATA_RW_DENSE_FILENAME = "graph_rw_dense_dataset.pt"
 
-# Ensure output directories exist
+CKPT_FILE = resolve_file_path(CKPT_FILENAME, PRIMARY_CKPT_DIR)
+DATA_RW_FILE = resolve_file_path(DATA_RW_FILENAME, PRIMARY_DATA_DIR)
+DATA_RW_DENSE_FILE = resolve_file_path(DATA_RW_DENSE_FILENAME, PRIMARY_DATA_DIR)
+
+# Ensure output chart directories exist
 os.makedirs("charts", exist_ok=True)
 os.makedirs("graphs/charts", exist_ok=True)
 
