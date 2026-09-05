@@ -133,6 +133,8 @@ config = {
 - `generate_decoder_topological_analysis_notebook.py`: Programmatic generator for Topological Graph Complexity Analysis Notebook.
 - `generate_decoder_rw_eval_notebook.py`: Programmatic generator for Multi-Metric Optimality Benchmark Notebook on Random Walk Traces.
 - `src/3.DecoderOnly/3.Decoder_Only_Dense_RW_Optimal_Path_Evaluation.ipynb`: Research tutorial notebook evaluating the Base Decoder-Only Graph Transformer (`decoder_only_ar_graph_transformer_rw_dense_base_epoch_1000.pt`) across an expanded 6-tier metric progression (exact match, path validity, graph and trace optimal path accuracy, non-exact optimal path recovery) on Sparse and Dense Random Walk datasets.
+- `generate_multi_model_eval_notebook.py`: Programmatic generator for Multi-Model Multi-Dataset Comparative Benchmark Notebook.
+- `src/3.DecoderOnly/5.Multi_Model_Multi_Dataset_Evaluation.ipynb`: Research tutorial notebook evaluating and comparing 5 representative Decoder-Only models on Token Efficiency, Path Optimality, and Path Validity across DFS, Sparse Random Walk, and Dense Random Walk execution traces.
 - `data/graph_dfs_dataset.pt`: Pre-generated DFS dataset payload.
 - `data/graph_rw_dataset.pt`: Pre-generated RW dataset payload.
 - `data/graph_rw_dense_dataset.pt`: Pre-generated Dense RW dataset payload ($d_{\text{min}} \ge 4$, Best-of-N $Q$).
@@ -342,3 +344,23 @@ Standard exact-match validation flags a rollout as a failure whenever $P_{\text{
 ### Key Research Insights
 1. **Dense Mesh Optimality Surge (+68.75% Relative Increase)**: In Dense Random Walks ($d_{\text{min}} \ge 4$), expanding the evaluation metric from exact match (12.80% Val) to trace optimal path accuracy (21.60% Val) recovers **+8.80% absolute (+68.75% relative)** in measured model capability.
 2. **Sparse vs. Dense Topology**: Sparse RW traces have few symmetric branches ($1.00\%$ non-exact optimal paths), while Dense RW traces feature rich multi-path connectivity ($8.20\%$ non-exact optimal paths).
+
+---
+
+## 14. Multi-Model Multi-Dataset Comparative Evaluation Benchmark (Notebook 5 in `src/3.DecoderOnly/`)
+
+Notebook `src/3.DecoderOnly/5.Multi_Model_Multi_Dataset_Evaluation.ipynb` evaluates and compares 5 representative Decoder-Only Graph Transformer models on **Token Efficiency (%)**, **Path Optimality (%)**, and **Path Validity (%)** across DFS, Sparse Random Walk, and Dense Random Walk execution traces.
+
+### Consolidated Multi-Model Multi-Dataset Comparison Table
+| Model / Dataset Key | Dataset Trace Flavor | Parameters | Epochs | Token Efficiency (%) | Path Optimality (%) | Path Validity (%) |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: |
+| **1. Base (DFS)** | DFS Tree Traces | 19,818 | 1000 | **99.40%** | **99.40%** | **100.00%** |
+| **2. Mid (Sparse RW)** | Sparse Random Walk | 139,306 | 1000 | **98.06%** | **80.80%** | **92.80%** |
+| **3. Small (Sparse RW)** | Sparse Random Walk | 19,818 | 1000 | **85.24%** | **1.60%** | **3.60%** |
+| **4. Mid (Dense RW)** | Dense Random Walk ($d_{\text{min}} \ge 4$) | 72,362 | 1000 | **85.22%** | **20.50%** | **57.60%** |
+| **5. Large Early-Stop (Dense RW)** | Dense Random Walk ($d_{\text{min}} \ge 4$) | 540,714 | 100 | **93.25%** | **41.00%** | **84.60%** |
+
+### Key Research Insights
+1. **DFS Determinism vs. Random Walk Difficulty**: The 19.8k parameter Base model achieves near-perfect accuracy (**99.40%**) on tree-structured DFS traces, but collapses to **1.60% Path Optimality** on Sparse Random Walk traces.
+2. **Capacity Threshold for Random Walks**: Scaling model capacity from **19.8k parameters** (Model 3 Small) to **139.3k parameters** (Model 2 Mid, 4 layers, $d_{\text{model}}=64$) on Sparse Random Walks increases Path Optimality from **1.60% to 80.80%** and Path Validity from **3.60% to 92.80%**.
+3. **Dense Mesh Topologies & Subgraph Optimality ($G_{\text{trace}}$)**: Evaluated consistently against the trace-induced subgraph $G_{\text{trace}}$ (matching Notebook 4), the 72.3k parameter Mid model achieves **20.50% Path Optimality** and **57.60% Path Validity**. Dense multi-dimensional mesh interconnectivity ($d_{\text{min}} \ge 4$) presents higher decision complexity, requiring a **540.7k parameter Large model** to achieve **84.60% Path Validity** and **41.00% Path Optimality**.
