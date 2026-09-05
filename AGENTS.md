@@ -34,6 +34,11 @@ All Jupyter Notebooks created or modified in this repository must strictly adher
 * Include a justification for the selected model architecture in the relevant section.
 * Use plenty of charts to show the results visually.
 
+### 5.6.1 Primary Environment & Storage Setup (Google Colab & Google Drive)
+* All Jupyter Notebooks created or modified in this repository run in **Google Colab** as their primary execution environment.
+* Notebooks must configure **Google Drive (`/content/drive/MyDrive/`) as the primary storage setup** for model checkpoints (`/content/drive/MyDrive/graph_checkpoints`) and dataset payloads (`/content/drive/MyDrive/graph_data`).
+* Include an explicit `try ... except ImportError:` block attempting to mount Google Drive (`from google.colab import drive; drive.mount('/content/drive')`) with a robust local path fallback search hierarchy (`src/static/data/`, `data/`, `graphs/data/`) to guarantee seamless execution across both Google Colab and local environments.
+
 ### 5.7 Preservation of Historical Notebooks and Results
 * **Never overwrite, modify, or destroy previous notebook files or results** when introducing a new experiment, solver, or interpretability technique.
 * Always create a new, dedicated tutorial notebook (e.g., `5.jspace_causal_steering_and_attention_tutorial.ipynb`) with an incremental numerical index to preserve past findings and maintain a clean research progression.
