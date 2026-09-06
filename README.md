@@ -135,6 +135,9 @@ config = {
 - `src/3.DecoderOnly/3.Decoder_Only_Dense_RW_Optimal_Path_Evaluation.ipynb`: Research tutorial notebook evaluating the Base Decoder-Only Graph Transformer (`decoder_only_ar_graph_transformer_rw_dense_base_epoch_1000.pt`) across an expanded 6-tier metric progression (exact match, path validity, graph and trace optimal path accuracy, non-exact optimal path recovery) on Sparse and Dense Random Walk datasets.
 - `generate_multi_model_eval_notebook.py`: Programmatic generator for Multi-Model Multi-Dataset Comparative Benchmark Notebook.
 - `src/3.DecoderOnly/5.Multi_Model_Multi_Dataset_Evaluation.ipynb`: Research tutorial notebook evaluating and comparing 5 representative Decoder-Only models on Token Efficiency, Path Optimality, and Path Validity across DFS, Sparse Random Walk, and Dense Random Walk execution traces.
+- `generate_looped_transformer_notebook.py`: Programmatic generator for Looped Causal Graph Transformer Notebook.
+- `src/5.LoopedTransformer/1.Looped_Transformer_DFS_Shortest_Path.ipynb`: Research tutorial notebook training a Looped Graph Transformer on DFS execution traces, analyzing parameter efficiency (>87% parameter reduction) and inference-time loop depth scaling ($T \in [1, 16]$).
+- `src/5.LoopedTransformer/README.md`: Companion guide and theoretical overview on Looped Transformer architectures for researchers.
 - `data/graph_dfs_dataset.pt`: Pre-generated DFS dataset payload.
 - `data/graph_rw_dataset.pt`: Pre-generated RW dataset payload.
 - `data/graph_rw_dense_dataset.pt`: Pre-generated Dense RW dataset payload ($d_{\text{min}} \ge 4$, Best-of-N $Q$).
@@ -364,3 +367,16 @@ Notebook `src/3.DecoderOnly/5.Multi_Model_Multi_Dataset_Evaluation.ipynb` evalua
 1. **DFS Determinism vs. Random Walk Difficulty**: The 19.8k parameter Base model achieves near-perfect accuracy (**99.40%**) on tree-structured DFS traces, but collapses to **1.60% Path Optimality** on Sparse Random Walk traces.
 2. **Capacity Threshold for Random Walks**: Scaling model capacity from **19.8k parameters** (Model 3 Small) to **139.3k parameters** (Model 2 Mid, 4 layers, $d_{\text{model}}=64$) on Sparse Random Walks increases Path Optimality from **1.60% to 80.80%** and Path Validity from **3.60% to 92.80%**.
 3. **Dense Mesh Topologies & Subgraph Optimality ($G_{\text{trace}}$)**: Evaluated consistently against the trace-induced subgraph $G_{\text{trace}}$ (matching Notebook 4), the 72.3k parameter Mid model achieves **20.50% Path Optimality** and **57.60% Path Validity**. Dense multi-dimensional mesh interconnectivity ($d_{\text{min}} \ge 4$) presents higher decision complexity, requiring a **540.7k parameter Large model** to achieve **84.60% Path Validity** and **41.00% Path Optimality**.
+
+---
+
+## 15. Looped Graph Transformers for Algorithmic Execution Traces (`src/5.LoopedTransformer/`)
+
+Notebook `src/5.LoopedTransformer/1.Looped_Transformer_DFS_Shortest_Path.ipynb` introduces **Looped Causal Graph Transformers** for extracting shortest paths from Depth-First Search (DFS) execution traces using **weight-tied recurrent execution** (Giannou et al., 2023; Yang et al., 2023).
+
+### Key Architectural & Empirical Insights
+- **Weight-Tied Recurrence Math**: Instead of $L$ distinct layer blocks, a single 1-layer Transformer block $B_{\theta}$ is reused iteratively for $T$ loop iterations ($T \in [1, \dots, T_{\text{max}}]$) with learned step embeddings $E_{\text{loop}}(t)$:
+  $$h^{(t)} = h^{(t-1)} + B_{\theta}\Big(h^{(t-1)} + E_{\text{loop}}(t), \text{causal\_mask}\Big)$$
+- **Extreme Parameter Reduction (>87% Reduction)**: A 1-layer Looped Transformer (~26k parameters) looped $T=8$ times performs comparably to an 8-layer stacked Transformer (~210k parameters) while reducing parameter capacity by **>87%**.
+- **Inference-Time Iteration Scaling ($T \in [1, 16]$)**: Evaluating the same trained 1-layer model across varying loop counts $T$ at inference time demonstrates dynamic computational scaling, where path extraction accuracy and validity scale monotonically with loop depth $T$.
+- **Algorithmic Recurrence Alignment**: Weight-tied loop execution aligns naturally with the recursive structure of DFS traversal and backtrace contraction on execution traces.
